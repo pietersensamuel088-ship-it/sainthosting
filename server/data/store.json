@@ -1,0 +1,18 @@
+{
+  "users": [],
+  "bots": [],
+  "containers": [
+    {
+      "id": "lxc-node-101",
+      "label": "SAINT-POD-01",
+      "vmid": 101,
+      "nodeHost": "pve-saint",
+      "status": "active",
+      "allocatedBots": [],
+      "maxBots": 5,
+      "cpuCores": 2,
+      "allocatedMemoryMb": 2048,
+      "uptimeSeconds": 0
+    }
+  ]
+}

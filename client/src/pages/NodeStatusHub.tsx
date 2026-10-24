@@ -1,8 +1,9 @@
 import React, { useRef } from 'react';
 import { useCluster } from '../context/ClusterContext';
+import { useAuth } from '../context/AuthContext';
 import { TelemetryGrid } from '../components/TelemetryGrid';
 import { CapacityAlert } from '../components/CapacityAlert';
-import { Sparkles, GitBranch, ShieldCheck, ArrowRight, CheckCircle2, Bot, Server, MessageSquare } from 'lucide-react';
+import { Sparkles, GitBranch, ShieldCheck, ArrowRight, CheckCircle2, Bot, Layers, CheckSquare } from 'lucide-react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { useGSAP } from '@gsap/react';
@@ -10,11 +11,12 @@ import { useGSAP } from '@gsap/react';
 gsap.registerPlugin(ScrollTrigger);
 
 interface NodeStatusHubProps {
-  onNavigate: (tab: 'status' | 'pipeline' | 'blueprint' | 'gatekeeper' | 'admin') => void;
+  onNavigate: (tab: 'status' | 'pipeline' | 'blueprint' | 'gatekeeper' | 'mybots' | 'admin') => void;
 }
 
 export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
   const { cluster } = useCluster();
+  const { requireAuth } = useAuth();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
@@ -26,10 +28,7 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
 
   useGSAP(
     () => {
-      // Bulletproof GSAP reveal using explicit fromTo with clearProps
-      const tl = gsap.timeline({
-        defaults: { ease: 'power3.out' },
-      });
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
       if (badgeRef.current) {
         tl.fromTo(
@@ -73,7 +72,6 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
         );
       }
 
-      // ScrollTrigger for below-the-fold sections
       if (statusSectionRef.current) {
         gsap.fromTo(
           statusSectionRef.current,
@@ -114,12 +112,12 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
   );
 
   return (
-    <div ref={containerRef} className="space-y-12">
+    <div ref={containerRef} className="space-y-12 font-mono">
       {/* Hero Section */}
       <section className="pt-6 pb-2 text-center max-w-3xl mx-auto space-y-4">
         <div
           ref={badgeRef}
-          className="inline-flex items-center space-x-2 px-3 py-1 bg-charcoal-900 border border-zinc-800 text-xs font-mono text-zinc-400"
+          className="inline-flex items-center space-x-2 px-3 py-1 bg-charcoal-900 border border-zinc-800 text-xs text-zinc-400"
         >
           <span className="w-2 h-2 bg-crimson-bright rounded-full"></span>
           <span>SAINT HOSTING</span>
@@ -129,25 +127,25 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
 
         <h1
           ref={titleRef}
-          className="text-3xl sm:text-5xl font-black font-mono tracking-tight text-white uppercase leading-tight"
+          className="text-3xl sm:text-5xl font-black tracking-tight text-white uppercase leading-tight"
         >
           EFFORTLESS BOT HOSTING <span className="text-crimson-bright">&</span> CREATION
         </h1>
 
         <p
           ref={descRef}
-          className="text-sm sm:text-base text-zinc-300 font-mono leading-relaxed"
+          className="text-sm sm:text-base text-zinc-300 leading-relaxed"
         >
           Run your bots 24/7 without surprise fees or sleep timeouts. Need a bot built from scratch? 
           We'll write the logic. Already have code? We'll host it immediately.
         </p>
       </section>
 
-      {/* Main 3 Gateway Cards: Big, clear, clean, and easily clickable */}
+      {/* Main 3 Gateway Cards */}
       <section ref={cardsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: Request a New Bot */}
         <div
-          onClick={() => onNavigate('blueprint')}
+          onClick={() => requireAuth(() => onNavigate('blueprint'))}
           className="group cursor-pointer bg-charcoal-900 border border-zinc-800 hover:border-crimson-bright p-6 transition-all duration-200 flex flex-col justify-between hover:shadow-crimson-glow"
         >
           <div>
@@ -155,26 +153,26 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
               <div className="w-10 h-10 bg-pitch border border-zinc-800 group-hover:border-crimson-bright flex items-center justify-center transition-colors">
                 <Sparkles className="w-5 h-5 text-crimson-bright" />
               </div>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-zinc-800 text-zinc-300 group-hover:bg-crimson-bright group-hover:text-pitch font-bold transition-colors">
-                I NEED A BOT
+              <span className="text-[10px] uppercase px-2 py-0.5 bg-zinc-800 text-zinc-300 group-hover:bg-crimson-bright group-hover:text-pitch font-bold transition-colors">
+                CREATE BOT
               </span>
             </div>
 
-            <h2 className="text-lg font-bold font-mono text-white mb-2 group-hover:text-crimson-bright transition-colors">
+            <h2 className="text-lg font-bold text-white mb-2 group-hover:text-crimson-bright transition-colors">
               1. Build a Custom Bot
             </h2>
 
-            <p className="text-xs text-zinc-400 font-mono leading-relaxed mb-6">
-              Have an idea but don't want to code it? Tell us what your bot should do and what slash commands you need. We'll generate the full code.
+            <p className="text-xs text-zinc-400 leading-relaxed mb-6">
+              Pick your presence (Do Not Disturb, Online), embed colors, and slash commands. Saint writes the logic and harnesses it for you.
             </p>
           </div>
 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onNavigate('blueprint');
+              requireAuth(() => onNavigate('blueprint'));
             }}
-            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-white font-mono text-xs font-bold uppercase group-hover:bg-crimson-bright group-hover:border-white transition-all flex items-center justify-center space-x-2"
+            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-white text-xs font-bold uppercase group-hover:bg-crimson-bright group-hover:border-white transition-all flex items-center justify-center space-x-2"
           >
             <span>BUILD MY BOT</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -183,7 +181,7 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
 
         {/* Card 2: Request Hosting for Existing Bot */}
         <div
-          onClick={() => onNavigate('pipeline')}
+          onClick={() => requireAuth(() => onNavigate('pipeline'))}
           className="group cursor-pointer bg-charcoal-900 border border-zinc-800 hover:border-crimson-bright p-6 transition-all duration-200 flex flex-col justify-between hover:shadow-crimson-glow"
         >
           <div>
@@ -191,33 +189,33 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
               <div className="w-10 h-10 bg-pitch border border-zinc-800 group-hover:border-crimson-bright flex items-center justify-center transition-colors">
                 <GitBranch className="w-5 h-5 text-crimson-bright" />
               </div>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-zinc-800 text-zinc-300 group-hover:bg-crimson-bright group-hover:text-pitch font-bold transition-colors">
-                I HAVE CODE
+              <span className="text-[10px] uppercase px-2 py-0.5 bg-zinc-800 text-zinc-300 group-hover:bg-crimson-bright group-hover:text-pitch font-bold transition-colors">
+                HOST CODE
               </span>
             </div>
 
-            <h2 className="text-lg font-bold font-mono text-white mb-2 group-hover:text-crimson-bright transition-colors">
+            <h2 className="text-lg font-bold text-white mb-2 group-hover:text-crimson-bright transition-colors">
               2. Host an Existing Bot
             </h2>
 
-            <p className="text-xs text-zinc-400 font-mono leading-relaxed mb-6">
-              Already have a GitHub repository? Submit your link and we'll spin it up in an isolated container with continuous 24/7 uptime.
+            <p className="text-xs text-zinc-400 leading-relaxed mb-6">
+              Already have a public GitHub repo? Paste your link and we'll spin it up in an isolated Docker container with 24/7 uptime.
             </p>
           </div>
 
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onNavigate('pipeline');
+              requireAuth(() => onNavigate('pipeline'));
             }}
-            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-white font-mono text-xs font-bold uppercase group-hover:bg-crimson-bright group-hover:border-white transition-all flex items-center justify-center space-x-2"
+            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-white text-xs font-bold uppercase group-hover:bg-crimson-bright group-hover:border-white transition-all flex items-center justify-center space-x-2"
           >
             <span>HOST MY REPOSITORY</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Card 3: Gatekeeper / Questions / Help */}
+        {/* Card 3: Gatekeeper / Help */}
         <div
           onClick={() => onNavigate('gatekeeper')}
           className="group cursor-pointer bg-charcoal-900 border border-zinc-800 hover:border-zinc-600 p-6 transition-all duration-200 flex flex-col justify-between"
@@ -227,17 +225,17 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
               <div className="w-10 h-10 bg-pitch border border-zinc-800 flex items-center justify-center">
                 <ShieldCheck className="w-5 h-5 text-zinc-300" />
               </div>
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 font-bold">
-                SUPPORT & INTAKE
+              <span className="text-[10px] uppercase px-2 py-0.5 bg-zinc-800 text-zinc-400 font-bold">
+                SUPPORT & FAQ
               </span>
             </div>
 
-            <h2 className="text-lg font-bold font-mono text-white mb-2">
-              3. Diagnostic & Contact
+            <h2 className="text-lg font-bold text-white mb-2">
+              3. Help & Contact
             </h2>
 
-            <p className="text-xs text-zinc-400 font-mono leading-relaxed mb-6">
-              Quick pre-flight diagnostic to check your bot's environment variables and entrypoint, or send direct inquiries straight to Saint.
+            <p className="text-xs text-zinc-400 leading-relaxed mb-6">
+              Quick pre-flight check for tokens and environment variables, plus direct messaging to connect with Saint.
             </p>
           </div>
 
@@ -246,15 +244,15 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
               e.stopPropagation();
               onNavigate('gatekeeper');
             }}
-            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-zinc-300 hover:text-white font-mono text-xs font-bold uppercase hover:border-zinc-500 transition-all flex items-center justify-center space-x-2"
+            className="w-full py-2.5 px-4 bg-charcoal-950 border border-zinc-800 text-zinc-300 hover:text-white text-xs font-bold uppercase hover:border-zinc-500 transition-all flex items-center justify-center space-x-2"
           >
-            <span>OPEN DIAGNOSTIC / CONTACT</span>
+            <span>GET HELP / CONTACT</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
       </section>
 
-      {/* Critical Capacity Alert (only visible when triggered) */}
+      {/* Critical Capacity Alert */}
       <CapacityAlert />
 
       {/* Real Live Host Status */}
@@ -262,12 +260,12 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 bg-crimson-bright"></span>
-            <h3 className="text-sm font-bold text-white font-mono tracking-widest uppercase">
-              LIVE HOST STATUS & CONTAINER SLOTS
+            <h3 className="text-sm font-bold text-white tracking-widest uppercase">
+              LIVE HOST STATUS & CONTAINER ALLOCATION
             </h3>
           </div>
-          <div className="text-xs text-zinc-500 font-mono">
-            {cluster?.activeBotsCount === 0 ? '0 active bots (real state)' : `${cluster?.activeBotsCount} bots online`}
+          <div className="text-xs text-zinc-500">
+            {cluster?.activeBotsCount === 0 ? '0 active bots • Real state active' : `${cluster?.activeBotsCount} bots online`}
           </div>
         </div>
 
@@ -277,7 +275,7 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
       {/* Transparent Info Banner */}
       <section
         ref={philosophySectionRef}
-        className="bg-charcoal-900 border border-zinc-800 p-6 font-mono text-xs text-zinc-400 leading-relaxed space-y-2"
+        className="bg-charcoal-900 border border-zinc-800 p-6 text-xs text-zinc-400 leading-relaxed space-y-2"
       >
         <div className="text-white font-bold uppercase tracking-wider text-sm flex items-center space-x-2">
           <CheckCircle2 className="w-4 h-4 text-crimson-bright" />

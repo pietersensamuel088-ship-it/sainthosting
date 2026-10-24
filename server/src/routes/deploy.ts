@@ -2,15 +2,17 @@ import { Router, Request, Response } from 'express';
 import { orchestrationEngine } from '../engine/orchestration.js';
 import { validateAndCleanGitHubUrl, sanitizeString } from '../middleware/sanitization.js';
 import { submissionLimiter } from '../middleware/rateLimiter.js';
+import { requireUserAuth } from './auth.js';
 
 const router = Router();
 
 /**
  * Public GitHub Deployment Ingest
- * Rate-limited to max 5 submissions per minute
+ * Requires User Authentication & rate limited to 5 submissions/min
  */
-router.post('/', submissionLimiter, (req: Request, res: Response): void => {
-  const { repoUrl, botName, framework, entrypoint, envVariablesCount } = req.body;
+router.post('/', requireUserAuth, submissionLimiter, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { repoUrl, botName, framework, customization } = req.body;
 
   if (!repoUrl) {
     res.status(400).json({
@@ -21,7 +23,7 @@ router.post('/', submissionLimiter, (req: Request, res: Response): void => {
     return;
   }
 
-  // Deep-clean and validate public GitHub URL
+  // Validate GitHub URL
   const validation = validateAndCleanGitHubUrl(repoUrl);
   if (!validation.valid) {
     res.status(400).json({
@@ -33,50 +35,35 @@ router.post('/', submissionLimiter, (req: Request, res: Response): void => {
   }
 
   const cleanBotName = sanitizeString(botName || '');
-  const cleanFramework = sanitizeString(framework || 'Node.js / Discord.js');
-  const cleanEntrypoint = sanitizeString(entrypoint || 'index.js');
-  const parsedEnvCount = typeof envVariablesCount === 'number' ? Math.max(0, Math.min(50, envVariablesCount)) : 0;
+  const cleanFramework = sanitizeString(framework || 'Node.js (Auto-detected)');
 
-  // Submit to orchestration engine (defaults to pending_approval)
-  const deployment = orchestrationEngine.submitGitHubDeployment({
+  // Submit to orchestration engine & save to user's database records
+  const deployment = orchestrationEngine.submitGitHubDeployment(user.userId, user.email, {
     repoUrl: validation.cleaned,
     botName: cleanBotName,
     framework: cleanFramework,
-    entrypoint: cleanEntrypoint,
-    envVariablesCount: parsedEnvCount,
+    customization,
   });
 
   res.status(201).json({
     success: true,
-    message: `Repository '${validation.cleaned}' ingested. System status: PENDING_APPROVAL.`,
+    message: `Repository '${validation.cleaned}' submitted. Status: PENDING_APPROVAL.`,
     deployment,
-    nextStep: {
-      action: 'ADMIN_GATE_CLEARANCE',
-      detail: 'Bot container will spin up inside Proxmox once approved by sysadmin.',
-      id: deployment.id,
-    },
   });
 });
 
 /**
- * Query status and pipeline logs of a specific deployment
+ * Query status of a specific deployment
  */
 router.get('/:id', (req: Request, res: Response): void => {
   const { id } = req.params;
-  const dep = orchestrationEngine.getDeploymentById(id);
-
-  if (!dep) {
-    res.status(404).json({
-      success: false,
-      error: 'DEPLOYMENT_NOT_FOUND',
-      message: `No active or queued deployment matching '${id}'.`,
-    });
-    return;
-  }
+  const dep = orchestrationEngine.getClusterStatus().containers
+    .flatMap(c => c.allocatedBots)
+    .includes(id);
 
   res.json({
     success: true,
-    deployment: dep,
+    id,
   });
 });
 
