@@ -53,10 +53,20 @@ export interface BotRecord {
   status: 'pending_approval' | 'approved' | 'running' | 'rejected';
   containerId: string | null;
   slotIndex: number | null;
+  subdomainConsoleUrl?: string; // e.g. https://sentry-bot.console.sa1nt.xyz
+  discordApp?: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+    inviteUrl: string;
+    maskedToken: string;
+    syncedAt: string;
+  };
   submittedAt: string;
   approvedAt?: string;
   rejectionReason?: string;
   pipelineLogs: Array<{ stage: string; message: string; timestamp: string }>;
+  liveTerminalLogs: Array<{ time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR'; text: string }>;
   telemetry: {
     cpuPercent: number;
     memoryMb: number;
@@ -220,9 +230,11 @@ class DatabaseStore {
   }
 
   // --- Bots Operations ---
-  public createBot(botData: Omit<BotRecord, 'id' | 'status' | 'containerId' | 'slotIndex' | 'submittedAt' | 'pipelineLogs' | 'telemetry'>): BotRecord {
+  public createBot(botData: Omit<BotRecord, 'id' | 'status' | 'containerId' | 'slotIndex' | 'submittedAt' | 'pipelineLogs' | 'telemetry' | 'liveTerminalLogs' | 'subdomainConsoleUrl'> & { liveTerminalLogs?: Array<{ time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR'; text: string }>; subdomainConsoleUrl?: string }): BotRecord {
     const id = `bot_${Date.now().toString(36).slice(-5)}`;
     const now = new Date();
+    const slug = botData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '') || 'bot';
+    const subdomain = `https://${slug}.console.sa1nt.xyz`;
 
     const newBot: BotRecord = {
       ...botData,
@@ -230,12 +242,30 @@ class DatabaseStore {
       status: 'pending_approval',
       containerId: null,
       slotIndex: null,
+      subdomainConsoleUrl: botData.subdomainConsoleUrl || subdomain,
       submittedAt: now.toISOString(),
       pipelineLogs: [
         {
           stage: 'Ingest',
           message: `Bot '${botData.name}' registered to account ${botData.userEmail}. Staged for review.`,
           timestamp: now.toLocaleTimeString(),
+        },
+      ],
+      liveTerminalLogs: botData.liveTerminalLogs || [
+        {
+          time: now.toLocaleTimeString(),
+          level: 'INFO',
+          text: `[SYSTEM] Staged bot '${botData.name}' under account clearance [${botData.userEmail}].`,
+        },
+        {
+          time: now.toLocaleTimeString(),
+          level: 'INFO',
+          text: `[SECURITY] Subdomain reservation assigned: ${subdomain} (Encrypted Tunnel).`,
+        },
+        {
+          time: now.toLocaleTimeString(),
+          level: 'WARN',
+          text: `[GATEKEEPER] Awaiting administrator signature to mount into LXC container slot.`,
         },
       ],
       telemetry: { cpuPercent: 0, memoryMb: 0, restarts: 0, uptime: '0s' },

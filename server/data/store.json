@@ -63,6 +63,61 @@
         "restarts": 0,
         "uptime": "0s"
       }
+    },
+    {
+      "userId": "usr_7455f9cd10598bfa",
+      "userEmail": "user@discord.gg",
+      "type": "ai_blueprint",
+      "name": "wdadw",
+      "framework": "Discord.js v14",
+      "scopeSummary": "awdsawdsa",
+      "customization": {
+        "statusMode": "online",
+        "activityType": "Listening to",
+        "activityText": "Bitxhees",
+        "embedColor": "#10B981",
+        "embedFooterText": "Powered by Saint Hosting",
+        "enableTimestamps": true,
+        "intents": {
+          "messageContent": true,
+          "guildMembers": false,
+          "guildPresences": false
+        },
+        "ephemeralReplies": false,
+        "defaultAdminOnly": false
+      },
+      "slashCommands": [
+        {
+          "name": "/ping",
+          "description": "Checks bot latency and responds with gateway health.",
+          "parameters": "None",
+          "ephemeral": true
+        },
+        {
+          "name": "/help",
+          "description": "Displays a list of all commands and how to use them.",
+          "parameters": "None",
+          "ephemeral": true
+        }
+      ],
+      "id": "bot_s86my",
+      "status": "pending_approval",
+      "containerId": null,
+      "slotIndex": null,
+      "submittedAt": "2026-10-24T19:18:49.498Z",
+      "pipelineLogs": [
+        {
+          "stage": "Ingest",
+          "message": "Bot 'wdadw' registered to account user@discord.gg. Staged for review.",
+          "timestamp": "21:18:49"
+        }
+      ],
+      "telemetry": {
+        "cpuPercent": 0,
+        "memoryMb": 0,
+        "restarts": 0,
+        "uptime": "0s"
+      }
     }
   ],
   "containers": [

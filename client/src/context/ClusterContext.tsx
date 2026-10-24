@@ -20,6 +20,14 @@ export interface BotDeployment {
   status: 'pending_approval' | 'approved' | 'rejected' | 'building' | 'running';
   containerId: string | null;
   slotIndex: number | null;
+  subdomainConsoleUrl?: string;
+  discordApp?: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+    inviteUrl: string;
+    maskedToken: string;
+  };
   submittedAt: string;
   approvedAt?: string;
   rejectionReason?: string;

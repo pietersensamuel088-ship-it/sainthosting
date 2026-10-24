@@ -21,6 +21,14 @@ interface BotData {
   status: 'pending_approval' | 'approved' | 'running' | 'rejected';
   containerId: string | null;
   slotIndex: number | null;
+  subdomainConsoleUrl?: string;
+  discordApp?: {
+    id: string;
+    username: string;
+    avatarUrl: string;
+    inviteUrl: string;
+    maskedToken: string;
+  };
   submittedAt: string;
   pipelineLogs: Array<{ stage: string; message: string; timestamp: string }>;
   telemetry: {
@@ -33,9 +41,10 @@ interface BotData {
 
 interface MyBotsViewProps {
   onNavigate: (tab: 'status' | 'pipeline' | 'blueprint' | 'gatekeeper' | 'mybots') => void;
+  onOpenConsole?: (botId: string) => void;
 }
 
-export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate }) => {
+export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsole }) => {
   const { user, requireAuth } = useAuth();
   const [bots, setBots] = useState<BotData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -243,6 +252,30 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate }) => {
                       : 'Saint has received your submission. Once reviewed, it spins up in a container with reliable community hosting.'}
                   </div>
                 </div>
+              </div>
+
+              {/* Subdomain Console Link & Direct Access Button */}
+              <div className="p-4 bg-charcoal-950 border border-crimson-dark flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-crimson-glow">
+                <div className="space-y-1">
+                  <div className="text-[10px] text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-crimson-bright" />
+                    <span>SUBDOMAIN WEB CONSOLE // ZERO PORT FORWARDING</span>
+                  </div>
+                  <div className="text-sm font-bold text-white select-all font-mono">
+                    {selectedBot.subdomainConsoleUrl || `https://${selectedBot.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.console.sa1nt.xyz`}
+                  </div>
+                  <div className="text-[10px] text-zinc-500">
+                    Live stream of daemon logs, Discord status sync, and container controls.
+                  </div>
+                </div>
+                <button
+                  onClick={() => onOpenConsole?.(selectedBot.id)}
+                  className="px-4 py-2.5 bg-crimson-bright hover:bg-crimson-dark text-white font-bold text-xs uppercase flex items-center justify-center space-x-2 shrink-0 border border-white transition-all shadow-crimson-glow"
+                >
+                  <Terminal className="w-3.5 h-3.5" />
+                  <span>OPEN CONSOLE</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Discord Customization Preview if configured */}

@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { orchestrationEngine } from '../engine/orchestration.js';
 import { generateAdminToken, requireAdminAuth } from '../middleware/auth.js';
 import { config } from '../config.js';
 import { sanitizeString } from '../middleware/sanitization.js';
+import { proxmoxClient } from '../engine/proxmoxClient.js';
 
 const router = Router();
 
@@ -145,6 +148,119 @@ router.post('/provision-node', requireAdminAuth, (req: Request, res: Response): 
     message: `[PROXMOX_PROVISIONED] New virtual container node '${newContainer.label}' (${newContainer.id}) initialized. +5 bot slots added.`,
     container: newContainer,
     clusterStatus: orchestrationEngine.getClusterStatus(),
+  });
+});
+
+/**
+ * Test Connection to Proxmox VE API using API Token
+ */
+router.post('/proxmox/test', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  const { host, port, tokenId, tokenSecret, nodeName } = req.body;
+
+  const targetHost = host || config.proxmox.host;
+  const targetPort = port ? parseInt(port, 10) : config.proxmox.port;
+  const targetTokenId = tokenId || config.proxmox.tokenId;
+  const targetTokenSecret = tokenSecret || config.proxmox.tokenSecret;
+  const targetNodeName = nodeName || config.proxmox.nodeName;
+
+  const result = await proxmoxClient.testConnection({
+    host: targetHost,
+    port: targetPort,
+    tokenId: targetTokenId,
+    tokenSecret: targetTokenSecret,
+    nodeName: targetNodeName,
+  });
+
+  if (!result.success) {
+    res.status(400).json(result);
+    return;
+  }
+
+  res.json(result);
+});
+
+/**
+ * Save and activate verified Proxmox VE API credentials
+ */
+router.post('/proxmox/save', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  const { host, port, tokenId, tokenSecret, nodeName } = req.body;
+
+  if (!host || !tokenId || !tokenSecret) {
+    res.status(400).json({
+      success: false,
+      message: 'Host, API Token ID, and Token Secret are required to establish the bridge.',
+    });
+    return;
+  }
+
+  // Update in-memory configuration
+  config.proxmox.host = host.trim();
+  config.proxmox.port = port ? parseInt(port, 10) : 8006;
+  config.proxmox.tokenId = tokenId.trim();
+  config.proxmox.tokenSecret = tokenSecret.trim();
+  config.proxmox.nodeName = (nodeName || 'pve').trim();
+
+  // Persist to .env file if available
+  try {
+    const envPath = path.resolve(__dirname, '../../../.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+      
+      const updateOrAppend = (key: string, value: string) => {
+        const regex = new RegExp(`^${key}=.*$`, 'm');
+        if (regex.test(envContent)) {
+          envContent = envContent.replace(regex, `${key}=${value}`);
+        } else {
+          envContent += `\n${key}=${value}`;
+        }
+      };
+
+      updateOrAppend('PROXMOX_HOST', config.proxmox.host);
+      updateOrAppend('PROXMOX_PORT', config.proxmox.port.toString());
+      updateOrAppend('PROXMOX_API_TOKEN_ID', config.proxmox.tokenId);
+      updateOrAppend('PROXMOX_API_TOKEN_SECRET', config.proxmox.tokenSecret);
+      updateOrAppend('PROXMOX_NODE_NAME', config.proxmox.nodeName);
+
+      fs.writeFileSync(envPath, envContent.trim() + '\n', 'utf-8');
+    }
+  } catch (err) {
+    console.warn('[ENV_WRITE_WARNING] Could not write to .env, in-memory updated:', err);
+  }
+
+  res.json({
+    success: true,
+    message: 'Proxmox VE bridge activated. Real hypervisor telemetry is now online.',
+    config: {
+      host: config.proxmox.host,
+      port: config.proxmox.port,
+      tokenId: config.proxmox.tokenId,
+      nodeName: config.proxmox.nodeName,
+      status: 'CONNECTED',
+    },
+  });
+});
+
+/**
+ * Get Proxmox VE connection status & hypervisor telemetry
+ */
+router.get('/proxmox/status', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  const isConfigured = Boolean(config.proxmox.host && config.proxmox.tokenId);
+  let liveNodeStatus = null;
+
+  if (isConfigured) {
+    liveNodeStatus = await proxmoxClient.fetchRealNodeStatus();
+  }
+
+  res.json({
+    success: true,
+    configured: isConfigured,
+    config: {
+      host: config.proxmox.host || '',
+      port: config.proxmox.port || 8006,
+      tokenId: config.proxmox.tokenId || '',
+      nodeName: config.proxmox.nodeName || 'pve',
+    },
+    liveNodeStatus,
   });
 });
 

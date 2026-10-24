@@ -174,16 +174,30 @@ class OrchestrationEngine {
     dbStore.updateContainer(targetContainer.id, targetContainer);
 
     const now = new Date();
+    const slug = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '') || 'bot';
+    const subdomain = bot.subdomainConsoleUrl || `https://${slug}.console.sa1nt.xyz`;
+
+    const liveLogs = [
+      ...(bot.liveTerminalLogs || []),
+      { time: now.toLocaleTimeString(), level: 'SUCCESS' as const, text: `[PROXMOX] Admin clearance approved. Allocating LXC container slot.` },
+      { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[SECURITY] Subdomain live: ${subdomain} (Zero Port Forwarding Reverse Tunnel).` },
+      { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[POD] Bound to ${targetContainer.label} -> Dedicated Slot [${assignedSlot}/5].` },
+      { time: now.toLocaleTimeString(), level: 'SUCCESS' as const, text: `[GATEWAY] Discord Gateway session initialized. Slash commands ready.` },
+      { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[DAEMON] Bot process active with community cluster uptime monitoring.` },
+    ];
+
     const updated = dbStore.updateBot(id, {
       status: 'running',
       containerId: targetContainer.id,
       slotIndex: assignedSlot,
+      subdomainConsoleUrl: subdomain,
       approvedAt: now.toISOString(),
+      liveTerminalLogs: liveLogs,
       pipelineLogs: [
         ...bot.pipelineLogs,
         { stage: 'Approve', message: 'Clearance verified by sysadmin.', timestamp: now.toLocaleTimeString() },
         { stage: 'Pack', message: `Allocated to ${targetContainer.label} -> Slot [${assignedSlot}/5].`, timestamp: now.toLocaleTimeString() },
-        { stage: 'Deploy', message: 'Process daemon online 24/7.', timestamp: now.toLocaleTimeString() },
+        { stage: 'Deploy', message: 'Process daemon online with community cluster uptime.', timestamp: now.toLocaleTimeString() },
       ],
       telemetry: {
         cpuPercent: 0.2,
