@@ -1,6 +1,6 @@
 import React from 'react';
 import { useCluster } from '../context/ClusterContext';
-import { Terminal, Shield, Cpu, Lock, Unlock } from 'lucide-react';
+import { Bot, Terminal, Shield, Lock, Unlock, Zap } from 'lucide-react';
 
 interface HeaderProps {
   activeTab: 'status' | 'pipeline' | 'blueprint' | 'gatekeeper' | 'admin';
@@ -12,97 +12,81 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab, onOpenA
   const { cluster, isAdmin, logoutAdmin } = useCluster();
 
   const navItems = [
-    { id: 'status', label: '01 // NODE STATUS', sub: 'status.sa1nt.xyz' },
-    { id: 'pipeline', label: '02 // AUTO PIPELINE', sub: 'deploy.sa1nt.xyz' },
-    { id: 'blueprint', label: '03 // AI BLUEPRINT', sub: 'studio.sa1nt.xyz' },
-    { id: 'gatekeeper', label: '04 // GATEKEEPER INTAKE', sub: 'contact.sa1nt.xyz' },
-    { id: 'admin', label: '05 // ADMIN GATE', sub: 'admin.sa1nt.xyz' },
+    { id: 'status', label: 'Home', desc: 'Overview & Status' },
+    { id: 'blueprint', label: 'Create Bot', desc: 'AI Blueprint Studio' },
+    { id: 'pipeline', label: 'Host Bot', desc: 'Deploy GitHub Repo' },
+    { id: 'gatekeeper', label: 'Help & Diagnostic', desc: 'Checklist & Contact' },
+    { id: 'admin', label: 'Admin', desc: 'Cluster Gate' },
   ] as const;
 
   return (
-    <header className="border-b border-zinc-800 bg-pitch/95 backdrop-blur sticky top-0 z-50">
-      {/* Top Cyber Tactical Info Bar */}
-      <div className="border-b border-zinc-900 px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center space-x-3">
-          <span className="flex items-center space-x-1.5 text-zinc-300">
-            <span className="w-1.5 h-1.5 bg-crimson-bright animate-ping"></span>
-            <span className="font-bold text-white">SAINT_INFRA_NODE_01</span>
-          </span>
-          <span className="text-zinc-700">|</span>
-          <span className="text-zinc-400">DOMAIN: <span className="text-white">sa1nt.xyz</span></span>
-          <span className="text-zinc-700">|</span>
-          <span className="text-zinc-400">PORTS 8080-8084: <span className="text-crimson-bright font-bold">LOCKED_OUT</span></span>
+    <header className="border-b border-zinc-900 bg-pitch/95 backdrop-blur sticky top-0 z-50">
+      {/* Top minimal status bar */}
+      <div className="border-b border-zinc-900/60 px-4 py-1.5 text-[11px] font-mono text-zinc-500 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+          <span className="text-zinc-300 font-medium">Saint Infrastructure</span>
+          <span className="text-zinc-700">•</span>
+          <span className="text-zinc-400">sa1nt.xyz</span>
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="hidden sm:flex items-center space-x-2 text-zinc-400">
-            <span>PROXMOX VE 8.2</span>
-            <span className="text-zinc-700">•</span>
-            <span>CEILING: 5 BOTS/CONTAINER</span>
-          </div>
-
+          <span className="text-zinc-500 hidden sm:inline">5 Bots / Container Density</span>
           {isAdmin ? (
             <button
               onClick={logoutAdmin}
-              className="flex items-center space-x-1 text-emerald-400 hover:text-crimson-bright transition-colors"
-              title="Click to terminate admin session"
+              className="text-emerald-400 hover:text-crimson-bright font-medium transition-colors flex items-center space-x-1"
             >
               <Unlock className="w-3 h-3" />
-              <span className="font-bold">ADMIN_AUTHENTICATED [DISCONNECT]</span>
+              <span>Admin Logged In [Exit]</span>
             </button>
           ) : (
             <button
               onClick={onOpenAdminAuth}
-              className="flex items-center space-x-1 text-zinc-400 hover:text-white transition-colors"
+              className="text-zinc-400 hover:text-white transition-colors flex items-center space-x-1"
             >
               <Lock className="w-3 h-3 text-crimson-bright" />
-              <span>ADMIN_AUTH</span>
+              <span>Admin Login</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Main Header / Brand Navigation */}
-      <div className="px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Brand identity */}
+      {/* Main Bar */}
+      <div className="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Logo / Brand */}
         <div
           onClick={() => setActiveTab('status')}
-          className="cursor-pointer group flex items-center space-x-3"
+          className="cursor-pointer flex items-center space-x-3 group"
         >
-          <div className="w-9 h-9 bg-pitch border border-crimson-bright flex items-center justify-center shadow-crimson-glow group-hover:scale-105 transition-transform">
-            <Terminal className="w-5 h-5 text-crimson-bright" />
+          <div className="w-8 h-8 bg-charcoal-900 border border-zinc-800 group-hover:border-crimson-bright flex items-center justify-center transition-colors">
+            <Bot className="w-4 h-4 text-crimson-bright" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-base font-black tracking-widest text-white uppercase font-mono">
-                SAINT <span className="text-crimson-bright">//</span> COLD STEEL HOSTING
-              </span>
-              <span className="text-[10px] px-1.5 py-0.2 bg-crimson-bright text-pitch font-bold uppercase">
-                v1.0
-              </span>
+            <div className="text-sm font-bold font-mono text-white tracking-wider uppercase group-hover:text-crimson-bright transition-colors">
+              SAINT <span className="text-crimson-bright">//</span> HOSTING
             </div>
-            <div className="text-xs text-zinc-400 font-mono">
-              Hobbyist Bot Infrastructure Cluster • Proxmox & Docker
+            <div className="text-[11px] text-zinc-500 font-mono">
+              Always-online community bot hosting
             </div>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <nav className="flex flex-wrap gap-1">
+        {/* Clean, Plain Navigation */}
+        <nav className="flex flex-wrap gap-1 sm:gap-2">
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`relative px-3 py-2 text-xs font-mono font-semibold transition-all text-left ${
+                className={`px-3.5 py-1.5 text-xs font-mono font-medium transition-all ${
                   isActive
-                    ? 'bg-charcoal-900 text-white border-l-2 border-crimson-bright shadow-crimson-glow'
-                    : 'text-zinc-400 hover:text-white hover:bg-charcoal-900/50'
+                    ? 'bg-charcoal-900 text-white border-b-2 border-crimson-bright'
+                    : 'text-zinc-400 hover:text-white hover:bg-charcoal-900/40'
                 }`}
               >
-                <div>{item.label}</div>
-                <div className="text-[9px] text-zinc-600 font-normal">{item.sub}</div>
+                {item.label}
               </button>
             );
           })}
