@@ -84,7 +84,7 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsol
         </div>
         <h2 className="text-xl font-bold text-white uppercase">Sign In to View Your Bots</h2>
         <p className="text-xs text-zinc-400 leading-relaxed">
-          Log in with Discord or your email to track your active containers, review slash commands, and monitor 24/7 uptime.
+          Log in with Discord or your email to track your active containers, review slash commands, and monitor community cluster uptime.
         </p>
         <button
           onClick={() => requireAuth(() => fetchUserBots())}

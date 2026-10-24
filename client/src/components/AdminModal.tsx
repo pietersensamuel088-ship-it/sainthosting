@@ -11,7 +11,7 @@ interface AdminModalProps {
 
 export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { loginAdmin } = useCluster();
-  const [password, setPassword] = useState('saint-admin-coldsteel-2026');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,9 +74,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose, onSucce
                     className="w-full bg-charcoal-950 border border-zinc-800 text-white font-mono text-xs pl-9 pr-3 py-2 focus:border-crimson-bright focus:outline-none focus:shadow-crimson-glow"
                     required
                   />
-                </div>
-                <div className="mt-1 text-[10px] text-zinc-600 font-mono">
-                  Default lab key: <span className="text-zinc-400">saint-admin-coldsteel-2026</span>
                 </div>
               </div>
 

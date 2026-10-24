@@ -2,6 +2,9 @@
 # Stage 1: Build Frontend & Backend
 FROM node:20-alpine AS builder
 
+# Install compilation tools for native SQLite addons
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Install dependencies for both client and server
@@ -22,6 +25,8 @@ RUN npm --prefix server run build
 
 # Stage 2: Production Runner
 FROM node:20-alpine AS runner
+
+RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 

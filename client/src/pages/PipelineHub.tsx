@@ -11,7 +11,7 @@ export const PipelineHub: React.FC = () => {
   const [botName, setBotName] = useState('');
   const [framework, setFramework] = useState('Node.js (Discord.js)');
   const [statusMode, setStatusMode] = useState<'online' | 'idle' | 'dnd' | 'invisible'>('online');
-  const [activityText, setActivityText] = useState('Online 24/7 on Saint');
+  const [activityText, setActivityText] = useState('Online on Saint');
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -238,9 +238,9 @@ export const PipelineHub: React.FC = () => {
               </div>
 
               <div>
-                <strong className="text-white">24/7 Dedicated Memory:</strong>
+                <strong className="text-white">Dedicated Container Memory:</strong>
                 <p className="text-[11px] text-zinc-400 mt-0.5">
-                  Each container receives a dedicated cgroup slice. Your bot will never fall asleep or drop its WebSocket connection.
+                  Each container receives a dedicated cgroup slice. Your bot maintains community cluster uptime with automatic restart resilience.
                 </p>
               </div>
 
@@ -253,7 +253,7 @@ export const PipelineHub: React.FC = () => {
             </div>
           </div>
 
-          {/* Saint's Direct Contact Placeholder Section */}
+          {/* Saint's Direct Contact Section */}
           <div className="p-6 bg-charcoal-900 border border-zinc-800 space-y-4 text-xs font-mono">
             <div className="flex items-center space-x-2 text-white font-bold">
               <MessageSquare className="w-4 h-4 text-crimson-bright" />
@@ -261,21 +261,17 @@ export const PipelineHub: React.FC = () => {
             </div>
 
             <p className="text-zinc-400 text-[11px]">
-              Need custom RAM quotas, dedicated database instances, or urgent setup help? Connect directly:
+              Need custom container quotas or technical assistance? Contact details can be configured below:
             </p>
 
             <div className="space-y-2">
               <div className="p-3 bg-pitch border border-zinc-800 flex items-center justify-between">
                 <span className="text-zinc-400">Discord:</span>
-                <span className="text-white font-bold">[Configurable in .env: Saint#0001]</span>
+                <span className="text-zinc-500 italic">[To be configured]</span>
               </div>
               <div className="p-3 bg-pitch border border-zinc-800 flex items-center justify-between">
                 <span className="text-zinc-400">Email:</span>
-                <span className="text-white font-bold">[Configurable in .env: saint@sa1nt.xyz]</span>
-              </div>
-              <div className="p-3 bg-pitch border border-zinc-800 flex items-center justify-between">
-                <span className="text-zinc-400">Telegram / Matrix:</span>
-                <span className="text-white font-bold">[Configurable in .env: @saint]</span>
+                <span className="text-zinc-500 italic">[To be configured]</span>
               </div>
             </div>
           </div>

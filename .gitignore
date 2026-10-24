@@ -12,3 +12,7 @@ yarn-error.log*
 .codex/
 .cursor/
 .gemini/
+server/data/*.db*
+server/data/*.json*
+*.db
+*.sqlite

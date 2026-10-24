@@ -45,4 +45,10 @@ export const config = {
     tokenSecret: process.env.PROXMOX_API_TOKEN_SECRET || '',
     nodeName: process.env.PROXMOX_NODE_NAME || 'pve',
   },
+  // Discord OAuth Application Credentials
+  discord: {
+    clientId: process.env.DISCORD_CLIENT_ID || '',
+    clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
+    redirectUri: process.env.DISCORD_REDIRECT_URI || `${process.env.BASE_URL || 'https://host.sa1nt.xyz'}/api/auth/discord/callback`,
+  },
 };

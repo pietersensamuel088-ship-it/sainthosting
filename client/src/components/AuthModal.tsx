@@ -32,19 +32,9 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  const handleDiscordAuth = async () => {
-    setLoading(true);
-    setError(null);
-    // Instant Discord OAuth sign-in flow
-    const res = await loginWithDiscord({
-      username: 'DiscordUser',
-      email: 'user@discord.gg',
-      avatarUrl: 'https://cdn.discordapp.com/embed/avatars/0.png',
-    });
-    setLoading(false);
-    if (!res.success) {
-      setError(res.message);
-    }
+  const handleDiscordAuth = () => {
+    // Redirect to real Discord OAuth2 authorization flow
+    window.location.href = '/api/auth/discord/login';
   };
 
   return (
@@ -70,7 +60,7 @@ export const AuthModal: React.FC = () => {
           <p className="text-xs text-zinc-400 font-mono">
             {mode === 'signin'
               ? 'Access your bots, track deployments, and manage hosting.'
-              : 'Sign up to deploy bots and track their live 24/7 status.'}
+              : 'Sign up to deploy bots and monitor their live status.'}
           </p>
         </div>
 
