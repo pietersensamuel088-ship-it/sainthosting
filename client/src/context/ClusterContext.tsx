@@ -68,7 +68,7 @@ export interface RealSystemTelemetry {
     configured: boolean;
     host: string;
     nodeName: string;
-    status: 'CONNECTED' | 'STANDBY_AWAITING_CONFIG';
+    status: 'CONNECTED & RUNNING' | 'DISCONNECTED' | 'UNDER MAINTENANCE' | 'STANDBY_AWAITING_CONFIG' | string;
     notice: string;
   };
 }

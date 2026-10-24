@@ -1,4 +1,6 @@
 import express, { Request, Response, NextFunction } from 'express';
+import fs from 'fs';
+import path from 'path';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
@@ -73,6 +75,18 @@ app.get('/api/health', (req: Request, res: Response) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// In production, serve the built Vite frontend
+const clientDistPath = path.resolve(__dirname, '../../client/dist');
+if (fs.existsSync(clientDistPath)) {
+  app.use(express.static(clientDistPath));
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    if (req.originalUrl.startsWith('/api/')) {
+      return next();
+    }
+    res.sendFile(path.join(clientDistPath, 'index.html'));
+  });
+}
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({

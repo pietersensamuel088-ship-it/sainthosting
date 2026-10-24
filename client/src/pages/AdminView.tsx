@@ -57,6 +57,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
   const [savingBridge, setSavingBridge] = useState(false);
   const [bridgeResult, setBridgeResult] = useState<{ success: boolean; message: string; version?: string } | null>(null);
   const [pveStatus, setPveStatus] = useState<any>(null);
+  const [isEditingBridge, setIsEditingBridge] = useState(false);
 
   const fetchProxmoxStatus = async () => {
     try {
@@ -349,115 +350,203 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
             </div>
           )}
 
-          {/* Connection Test & Config Form */}
-          <form onSubmit={handleTestBridge} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              <div className="lg:col-span-2 space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase font-bold">
-                  Proxmox Host (LAN IP or Domain):
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://192.168.1.100 or pve.local"
-                  value={pveHost}
-                  onChange={(e) => setPveHost(e.target.value)}
-                  className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
-                  required
-                />
+          {/* When bridge is configured and not in edit mode, show Connected Status Card */}
+          {pveStatus?.configured && !isEditingBridge ? (
+            <div className="p-4 bg-pitch border border-emerald-900/60 space-y-4 animate-fade-in">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-emerald-950/50 border border-emerald-600 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-emerald-400 font-bold uppercase text-xs tracking-wider">
+                        CONNECTED & RUNNING
+                      </span>
+                    </div>
+                    <div className="text-white font-bold text-sm">
+                      Proxmox VE Node: <span className="text-crimson-bright font-mono">{pveNodeName || 'pve'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={handleTestBridge}
+                    disabled={testingBridge}
+                    className="px-3 py-1.5 bg-charcoal-900 border border-zinc-700 hover:border-zinc-500 text-xs text-zinc-300 font-bold uppercase"
+                  >
+                    {testingBridge ? 'TESTING...' : 'RE-TEST CONNECTION'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingBridge(true)}
+                    className="px-3 py-1.5 bg-pitch border border-zinc-700 hover:border-crimson-bright text-xs text-white font-bold uppercase transition-colors"
+                  >
+                    UPDATE / EDIT CONFIGURATION
+                  </button>
+                </div>
+              </div>
+
+              {pveStatus.liveNodeStatus && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-zinc-900 text-[11px]">
+                  <div className="p-2 bg-charcoal-950 border border-zinc-900">
+                    <span className="text-zinc-500 block text-[10px]">HYPERVISOR OS</span>
+                    <span className="text-zinc-200 font-bold truncate block">
+                      {pveStatus.liveNodeStatus.pveversion?.split('/')[1] || 'Proxmox VE 9.x'}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-charcoal-950 border border-zinc-900">
+                    <span className="text-zinc-500 block text-[10px]">CPU ARCHITECTURE</span>
+                    <span className="text-zinc-200 font-bold truncate block">
+                      {pveStatus.liveNodeStatus.cpuinfo?.cores || 4} Cores ({pveStatus.liveNodeStatus.cpuinfo?.cpus || 8} Threads)
+                    </span>
+                  </div>
+                  <div className="p-2 bg-charcoal-950 border border-zinc-900">
+                    <span className="text-zinc-500 block text-[10px]">NODE MEMORY</span>
+                    <span className="text-zinc-200 font-bold truncate block">
+                      {(pveStatus.liveNodeStatus.memory?.used / (1024 * 1024 * 1024)).toFixed(1)} GB / {(pveStatus.liveNodeStatus.memory?.total / (1024 * 1024 * 1024)).toFixed(1)} GB
+                    </span>
+                  </div>
+                  <div className="p-2 bg-charcoal-950 border border-zinc-900">
+                    <span className="text-zinc-500 block text-[10px]">NODE UPTIME</span>
+                    <span className="text-emerald-400 font-bold truncate block">
+                      {Math.floor(pveStatus.liveNodeStatus.uptime / 86400)} Days Online
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Connection Test & Config Form */
+            <form onSubmit={handleTestBridge} className="space-y-4">
+              <div className="flex items-center justify-between pb-1">
+                <span className="text-xs text-zinc-400 uppercase font-bold">
+                  {pveStatus?.configured ? 'Edit Proxmox Bridge Configuration' : 'Configure New Proxmox Bridge'}
+                </span>
+                {pveStatus?.configured && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingBridge(false)}
+                    className="text-xs text-zinc-500 hover:text-white"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="lg:col-span-2 space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase font-bold">
+                    Proxmox Host (LAN IP or Domain):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="https://192.168.1.100 or pve.local"
+                    value={pveHost}
+                    onChange={(e) => setPveHost(e.target.value)}
+                    className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase font-bold">
+                    Port:
+                  </label>
+                  <input
+                    type="text"
+                    value={pvePort}
+                    onChange={(e) => setPvePort(e.target.value)}
+                    placeholder="8006"
+                    className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase font-bold">
+                    API Token ID:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="root@pam!saint-token"
+                    value={pveTokenId}
+                    onChange={(e) => setPveTokenId(e.target.value)}
+                    className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-zinc-400 uppercase font-bold">
+                    Target Node:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="pve"
+                    value={pveNodeName}
+                    onChange={(e) => setPveNodeName(e.target.value)}
+                    className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase font-bold">
-                  Port:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-zinc-400 uppercase font-bold">
+                    API Token Secret (UUID):
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSecret(!showSecret)}
+                    className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1"
+                  >
+                    {showSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                    <span>{showSecret ? 'HIDE' : 'SHOW'}</span>
+                  </button>
+                </div>
                 <input
-                  type="text"
-                  value={pvePort}
-                  onChange={(e) => setPvePort(e.target.value)}
-                  placeholder="8006"
+                  type={showSecret ? 'text' : 'password'}
+                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  value={pveTokenSecret}
+                  onChange={(e) => setPveTokenSecret(e.target.value)}
                   className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase font-bold">
-                  API Token ID:
-                </label>
-                <input
-                  type="text"
-                  placeholder="root@pam!saint-token"
-                  value={pveTokenId}
-                  onChange={(e) => setPveTokenId(e.target.value)}
-                  className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
-                  required
-                />
-              </div>
+              {/* Form Actions */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                <div className="text-[11px] text-zinc-500">
+                  Self-signed PVE SSL certificates are automatically trusted. Secrets are masked in storage.
+                </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] text-zinc-400 uppercase font-bold">
-                  Target Node:
-                </label>
-                <input
-                  type="text"
-                  placeholder="pve"
-                  value={pveNodeName}
-                  onChange={(e) => setPveNodeName(e.target.value)}
-                  className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
-                />
-              </div>
-            </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="submit"
+                    disabled={testingBridge || !pveHost || !pveTokenId}
+                    className="px-4 py-2 bg-charcoal-900 border border-zinc-700 hover:border-crimson-bright text-white text-xs font-bold uppercase transition-all flex items-center space-x-1.5"
+                  >
+                    <Wifi className={`w-3.5 h-3.5 text-crimson-bright ${testingBridge ? 'animate-pulse' : ''}`} />
+                    <span>{testingBridge ? 'TESTING BRIDGE...' : 'TEST BRIDGE CONNECTION'}</span>
+                  </button>
 
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] text-zinc-400 uppercase font-bold">
-                  API Token Secret (UUID):
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowSecret(!showSecret)}
-                  className="text-[10px] text-zinc-500 hover:text-white flex items-center gap-1"
-                >
-                  {showSecret ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                  <span>{showSecret ? 'HIDE' : 'SHOW'}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await handleSaveBridge();
+                      setIsEditingBridge(false);
+                    }}
+                    disabled={savingBridge || !pveHost || !pveTokenId || !pveTokenSecret}
+                    className="px-4 py-2 bg-crimson-bright hover:bg-crimson-dark text-white text-xs font-bold uppercase transition-all shadow-crimson-glow border border-white flex items-center space-x-1.5"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{savingBridge ? 'ACTIVATING...' : 'SAVE & ACTIVATE BRIDGE'}</span>
+                  </button>
+                </div>
               </div>
-              <input
-                type={showSecret ? 'text' : 'password'}
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                value={pveTokenSecret}
-                onChange={(e) => setPveTokenSecret(e.target.value)}
-                className="w-full bg-pitch border border-zinc-800 px-3 py-2 text-xs text-white focus:border-crimson-bright focus:outline-none"
-              />
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-              <div className="text-[11px] text-zinc-500">
-                Self-signed PVE SSL certificates are automatically trusted. Secrets are masked in storage.
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  type="submit"
-                  disabled={testingBridge || !pveHost || !pveTokenId}
-                  className="px-4 py-2 bg-charcoal-900 border border-zinc-700 hover:border-crimson-bright text-white text-xs font-bold uppercase transition-all flex items-center space-x-1.5"
-                >
-                  <Wifi className={`w-3.5 h-3.5 text-crimson-bright ${testingBridge ? 'animate-pulse' : ''}`} />
-                  <span>{testingBridge ? 'TESTING BRIDGE...' : 'TEST BRIDGE CONNECTION'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleSaveBridge}
-                  disabled={savingBridge || !pveHost || !pveTokenId || !pveTokenSecret}
-                  className="px-4 py-2 bg-crimson-bright hover:bg-crimson-dark text-white text-xs font-bold uppercase transition-all shadow-crimson-glow border border-white flex items-center space-x-1.5"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>{savingBridge ? 'ACTIVATING...' : 'SAVE & ACTIVATE BRIDGE'}</span>
-                </button>
-              </div>
-            </div>
-          </form>
+            </form>
+          )}
 
           {/* Test Feedback Result */}
           {bridgeResult && (

@@ -82,8 +82,10 @@ export const TelemetryGrid: React.FC = () => {
             </span>
             <span
               className={`text-[10px] font-bold px-1.5 py-0.5 ${
-                telemetry.proxmoxIntegration.configured
+                telemetry.proxmoxIntegration.status === 'CONNECTED & RUNNING'
                   ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                  : telemetry.proxmoxIntegration.status === 'UNDER MAINTENANCE'
+                  ? 'bg-amber-950 text-amber-400 border border-amber-800'
                   : 'bg-zinc-800 text-zinc-400'
               }`}
             >
@@ -91,10 +93,15 @@ export const TelemetryGrid: React.FC = () => {
             </span>
           </div>
           <div className="text-[11px] text-zinc-400 mt-2 leading-tight">
-            {telemetry.proxmoxIntegration.configured ? (
-              <span className="text-white">Connected to {telemetry.proxmoxIntegration.host}</span>
+            {telemetry.proxmoxIntegration.status === 'CONNECTED & RUNNING' ? (
+              <span className="text-emerald-400 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Hypervisor Bridge Active</span>
+              </span>
+            ) : telemetry.proxmoxIntegration.status === 'UNDER MAINTENANCE' ? (
+              <span className="text-amber-400">Node Under Maintenance</span>
             ) : (
-              <span className="text-zinc-500">Awaiting live Proxmox credentials in .env</span>
+              <span className="text-zinc-500">Awaiting Proxmox Bridge in Admin Gate</span>
             )}
           </div>
         </div>

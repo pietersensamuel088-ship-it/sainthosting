@@ -1,6 +1,7 @@
 import os from 'os';
 import { config } from '../config.js';
 import { dbStore, BotRecord, ClusterContainerRecord, DiscordCustomization, SlashCommandDef } from '../db/store.js';
+import { proxmoxClient, ProxmoxNodeStatusResponse } from './proxmoxClient.js';
 
 export interface RealSystemTelemetry {
   serverHost: string;
@@ -17,12 +18,42 @@ export interface RealSystemTelemetry {
     configured: boolean;
     host: string;
     nodeName: string;
-    status: 'CONNECTED' | 'STANDBY_AWAITING_CONFIG';
+    status: 'CONNECTED & RUNNING' | 'DISCONNECTED' | 'UNDER MAINTENANCE' | 'STANDBY_AWAITING_CONFIG';
     notice: string;
   };
 }
 
 class OrchestrationEngine {
+  private cachedPveStatus: ProxmoxNodeStatusResponse | null = null;
+  private lastPveFetch = 0;
+  private pveFetchInProgress = false;
+
+  constructor() {
+    this.refreshProxmoxTelemetry();
+    // Poll Proxmox hypervisor metrics every 15 seconds
+    setInterval(() => {
+      this.refreshProxmoxTelemetry();
+    }, 15000);
+  }
+
+  public async refreshProxmoxTelemetry(): Promise<void> {
+    const isPveConfigured = Boolean(config.proxmox.host && config.proxmox.tokenId);
+    if (!isPveConfigured || this.pveFetchInProgress) return;
+
+    this.pveFetchInProgress = true;
+    try {
+      const status = await proxmoxClient.fetchRealNodeStatus();
+      if (status) {
+        this.cachedPveStatus = status;
+        this.lastPveFetch = Date.now();
+      }
+    } catch (err) {
+      console.warn('[PVE_TELEMETRY_REFRESH_WARN]', err);
+    } finally {
+      this.pveFetchInProgress = false;
+    }
+  }
+
   private capacityTriggerAlert: {
     active: boolean;
     message: string | null;
@@ -34,14 +65,75 @@ class OrchestrationEngine {
   };
 
   public getRealTelemetry(): RealSystemTelemetry {
+    const procMem = process.memoryUsage();
+    const isPveConfigured = Boolean(config.proxmox.host && config.proxmox.tokenId);
+    const pve = this.cachedPveStatus;
+
+    // When Proxmox is bridged, stream the real Proxmox Hypervisor hardware metrics!
+    if (isPveConfigured && pve && pve.memory) {
+      const totalMem = pve.memory.total;
+      const usedMem = pve.memory.used;
+      const freeMem = pve.memory.free;
+      const memPercent = Math.round((usedMem / totalMem) * 100);
+      const cores = pve.cpuinfo?.cpus || pve.cpuinfo?.cores || 8;
+      const model = pve.cpuinfo?.model || 'Intel Hypervisor Core';
+      const kernelClean = pve.kversion ? pve.kversion.split(' ')[0] : 'Linux (PVE)';
+
+      return {
+        serverHost: config.proxmox.nodeName || 'pve',
+        serverPlatform: `Proxmox VE // ${kernelClean}`,
+        serverUptimeSeconds: pve.uptime || 0,
+        cpuCores: cores,
+        cpuModel: model,
+        totalSystemMemoryGb: parseFloat((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
+        usedSystemMemoryGb: parseFloat((usedMem / (1024 * 1024 * 1024)).toFixed(2)),
+        freeSystemMemoryGb: parseFloat((freeMem / (1024 * 1024 * 1024)).toFixed(2)),
+        memoryUsagePercent: memPercent,
+        nodeProcessMemoryMb: Math.round(procMem.rss / (1024 * 1024)),
+        proxmoxIntegration: {
+          configured: true,
+          host: 'Connected & Running',
+          nodeName: config.proxmox.nodeName,
+          status: 'CONNECTED & RUNNING',
+          notice: 'Connected & Running',
+        },
+      };
+    }
+
+    // Fallback if Proxmox is configured but currently unreachable
+    if (isPveConfigured && !pve) {
+      const totalMem = os.totalmem();
+      const freeMem = os.freemem();
+      const usedMem = totalMem - freeMem;
+      const memPercent = Math.round((usedMem / totalMem) * 100);
+      const cpus = os.cpus();
+
+      return {
+        serverHost: config.proxmox.nodeName || 'pve',
+        serverPlatform: 'Proxmox VE // Connecting...',
+        serverUptimeSeconds: Math.floor(os.uptime()),
+        cpuCores: cpus.length,
+        cpuModel: cpus[0]?.model || 'Cluster Processor',
+        totalSystemMemoryGb: parseFloat((totalMem / (1024 * 1024 * 1024)).toFixed(2)),
+        usedSystemMemoryGb: parseFloat((usedMem / (1024 * 1024 * 1024)).toFixed(2)),
+        freeSystemMemoryGb: parseFloat((freeMem / (1024 * 1024 * 1024)).toFixed(2)),
+        memoryUsagePercent: memPercent,
+        nodeProcessMemoryMb: Math.round(procMem.rss / (1024 * 1024)),
+        proxmoxIntegration: {
+          configured: true,
+          host: 'Under Maintenance',
+          nodeName: config.proxmox.nodeName,
+          status: 'UNDER MAINTENANCE',
+          notice: 'Under Maintenance',
+        },
+      };
+    }
+
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
     const usedMem = totalMem - freeMem;
     const memPercent = Math.round((usedMem / totalMem) * 100);
-    const procMem = process.memoryUsage();
     const cpus = os.cpus();
-
-    const isPveConfigured = Boolean(config.proxmox.host && config.proxmox.tokenId);
 
     return {
       serverHost: os.hostname(),
@@ -55,13 +147,11 @@ class OrchestrationEngine {
       memoryUsagePercent: memPercent,
       nodeProcessMemoryMb: Math.round(procMem.rss / (1024 * 1024)),
       proxmoxIntegration: {
-        configured: isPveConfigured,
-        host: config.proxmox.host || 'Not Connected',
+        configured: false,
+        host: 'Not Connected',
         nodeName: config.proxmox.nodeName,
-        status: isPveConfigured ? 'CONNECTED' : 'STANDBY_AWAITING_CONFIG',
-        notice: isPveConfigured
-          ? `Connected to Proxmox VE node ${config.proxmox.nodeName}`
-          : 'Proxmox API credentials not set. Set PROXMOX_HOST in .env to stream hypervisor telemetry.',
+        status: 'STANDBY_AWAITING_CONFIG',
+        notice: 'Disconnected',
       },
     };
   }

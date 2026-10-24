@@ -5,6 +5,12 @@ import { config } from '../config.js';
 
 export interface ProxmoxNodeStatusResponse {
   cpu: number; // 0 to 1
+  cpuinfo?: {
+    cores: number;
+    cpus: number;
+    model: string;
+    mhz?: string;
+  };
   memory: {
     total: number;
     used: number;

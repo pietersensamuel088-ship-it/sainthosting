@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  saint-platform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: saint-hosting-platform
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - CLIENT_PORT=3000
+      - BASE_URL=https://sa1nt.xyz
+      - API_BASE_URL=https://api.sa1nt.xyz
+      - JWT_SECRET=saint-cold-steel-super-secure-jwt-secret-99901234
+      - ADMIN_PASSWORD=saint-admin-coldsteel-2026
+      - ADMIN_EMAIL=sysadmin@sa1nt.xyz
+      - PROXMOX_HOST=https://192.168.18.212:8006
+      - PROXMOX_PORT=8006
+      - PROXMOX_NODE_NAME=pve
+      - PROXMOX_API_TOKEN_ID=root@pam!saint-token
+      - PROXMOX_API_TOKEN_SECRET=97103130-645c-4186-9b4a-7271022af92f
+    volumes:
+      - ./server/data:/app/server/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
