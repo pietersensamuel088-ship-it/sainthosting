@@ -31,11 +31,12 @@ services:
       timeout: 5s
       retries: 3
 
-  # Cloudflare Tunnel Client (Zero Port Forwarding to sa1nt.xyz)
+  # Cloudflare Tunnel Client (Zero Port Forwarding to host.sa1nt.xyz)
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: saint-cloudflared-tunnel
     restart: unless-stopped
+    network_mode: host
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
