@@ -1,9 +1,6 @@
 # Multi-stage Dockerfile for Saint // Cold Steel Bot Hosting
-# Stage 1: Build Frontend & Backend
-FROM node:20-alpine AS builder
-
-# Install compilation tools for native SQLite addons
-RUN apk add --no-cache python3 make g++
+# Stage 1: Build Frontend & Backend (Debian glibc for rock-solid SQLite compatibility)
+FROM node:20-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -24,23 +21,21 @@ RUN npm --prefix client run build
 RUN npm --prefix server run build
 
 # Stage 2: Production Runner
-FROM node:20-alpine AS runner
-
-RUN apk add --no-cache python3 make g++
+FROM node:20-bookworm-slim AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=5000
 
-# Copy root package
+# Copy root and server package definitions
 COPY package.json ./
 COPY server/package.json ./server/
 
-# Install production dependencies only
+# Install production dependencies for server
 RUN npm --prefix server install --omit=dev
 
-# Copy compiled outputs
+# Copy compiled outputs from builder
 COPY --from=builder /app/server/dist ./server/dist
 COPY --from=builder /app/client/dist ./client/dist
 
@@ -52,4 +47,5 @@ EXPOSE 5000
 
 VOLUME ["/app/server/data"]
 
-CMD ["node", "server/dist/server.js"]
+WORKDIR /app/server
+CMD ["node", "dist/server.js"]

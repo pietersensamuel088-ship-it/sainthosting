@@ -337,8 +337,7 @@ class DatabaseStore {
   public createBot(botData: Omit<BotRecord, 'id' | 'status' | 'containerId' | 'slotIndex' | 'submittedAt' | 'pipelineLogs' | 'telemetry' | 'liveTerminalLogs' | 'subdomainConsoleUrl'> & { liveTerminalLogs?: Array<{ time: string; level: 'INFO' | 'SUCCESS' | 'WARN' | 'ERROR'; text: string }>; subdomainConsoleUrl?: string }): BotRecord {
     const id = `bot_${Date.now().toString(36).slice(-5)}`;
     const now = new Date();
-    const slug = botData.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '') || 'bot';
-    const subdomain = `https://${slug}.console.sa1nt.xyz`;
+    const subdomain = botData.subdomainConsoleUrl || `https://console.sa1nt.xyz/?bot=${id}`;
 
     const newBot: BotRecord = {
       ...botData,

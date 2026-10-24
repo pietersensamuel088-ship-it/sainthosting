@@ -264,8 +264,7 @@ class OrchestrationEngine {
     dbStore.updateContainer(targetContainer.id, targetContainer);
 
     const now = new Date();
-    const slug = bot.name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/^-+|-+$/g, '') || 'bot';
-    const subdomain = bot.subdomainConsoleUrl || `https://${slug}.console.sa1nt.xyz`;
+    const subdomain = bot.subdomainConsoleUrl || `https://console.sa1nt.xyz/?bot=${bot.id}`;
 
     const liveLogs = [
       ...(bot.liveTerminalLogs || []),
@@ -322,16 +321,30 @@ class OrchestrationEngine {
     return { success: true, deployment: updated, message: `Bot ${id} rejected.` };
   }
 
-  public provisionProxmoxNode(label?: string): ClusterContainerRecord {
+  public async provisionProxmoxNode(label?: string): Promise<ClusterContainerRecord> {
     const containers = dbStore.getContainers();
-    const nextVmid = 100 + containers.length + 1;
-    const nodeLabel = label?.trim() || `SAINT-POD-0${containers.length + 1}`;
+    const nextVmid = await proxmoxClient.getNextSafeVmid();
+    const nodeLabel = label?.trim() || `SAINT-POD-${containers.length + 1 < 10 ? '0' : ''}${containers.length + 1}`;
+
+    // If Proxmox is bridged, trigger real LXC container provisioning on the hypervisor
+    if (config.proxmox.host && config.proxmox.tokenId) {
+      try {
+        await proxmoxClient.createLxcContainer({
+          vmid: nextVmid,
+          hostname: nodeLabel.toLowerCase(),
+          cores: 2,
+          memoryMb: 1024,
+        });
+      } catch (err) {
+        console.warn('[PROXMOX_PROVISION_NOTICE] Container staged in cluster catalog:', err);
+      }
+    }
 
     const newContainer: ClusterContainerRecord = {
       id: `lxc-node-${nextVmid}`,
       label: nodeLabel,
       vmid: nextVmid,
-      nodeHost: config.proxmox.nodeName || 'pve-saint',
+      nodeHost: config.proxmox.nodeName || 'pve',
       status: 'active',
       allocatedBots: [],
       maxBots: 5,

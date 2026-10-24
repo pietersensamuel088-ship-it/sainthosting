@@ -139,9 +139,9 @@ router.post('/reject/:id', requireAdminAuth, (req: Request, res: Response): void
  * Manually provision an additional Proxmox VM node / LXC container
  * Expands cluster capacity and resolves capacity trigger alert
  */
-router.post('/provision-node', requireAdminAuth, (req: Request, res: Response): void => {
+router.post('/provision-node', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
   const { label } = req.body;
-  const newContainer = orchestrationEngine.provisionProxmoxNode(label);
+  const newContainer = await orchestrationEngine.provisionProxmoxNode(label);
 
   res.status(201).json({
     success: true,

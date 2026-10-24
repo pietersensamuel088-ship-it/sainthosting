@@ -219,6 +219,108 @@ export class ProxmoxClient {
       return null;
     }
   }
+
+  /**
+   * Returns next safe VMID, enforcing dedicated 900+ series to avoid collisions with personal VMs
+   */
+  public async getNextSafeVmid(): Promise<number> {
+    const { host, port = 8006, tokenId, tokenSecret } = config.proxmox;
+    if (!host || !tokenId || !tokenSecret) return 901;
+
+    const cleanHost = normalizeProxmoxUrl(host, port);
+    try {
+      const res = await pveRequest(`${cleanHost}/api2/json/cluster/nextid`, {
+        method: 'GET',
+        headers: {
+          Authorization: `PVEAPIToken=${tokenId}=${tokenSecret}`,
+          Accept: 'application/json',
+        },
+        timeoutMs: 4000,
+      });
+
+      if (res.ok) {
+        const json: any = await res.json();
+        const pveNext = parseInt(json.data || '100', 10);
+        return Math.max(901, pveNext);
+      }
+      return 901;
+    } catch {
+      return 901;
+    }
+  }
+
+  /**
+   * Provisions a dedicated unprivileged LXC Container on Proxmox VE
+   */
+  public async createLxcContainer(params: {
+    vmid?: number;
+    hostname: string;
+    cores?: number;
+    memoryMb?: number;
+    diskGb?: number;
+  }): Promise<{ success: boolean; vmid: number; message: string; taskId?: string }> {
+    const { host, port = 8006, tokenId, tokenSecret, nodeName } = config.proxmox;
+    if (!host || !tokenId || !tokenSecret) {
+      return {
+        success: false,
+        vmid: 901,
+        message: 'Proxmox API credentials not configured in .env',
+      };
+    }
+
+    const cleanHost = normalizeProxmoxUrl(host, port);
+    const vmid = params.vmid || (await this.getNextSafeVmid());
+    const cores = params.cores || 2;
+    const memory = params.memoryMb || 1024;
+    const disk = params.diskGb || 8;
+    const hostname = params.hostname || `saint-pod-${vmid}`;
+
+    try {
+      const postData = new URLSearchParams({
+        vmid: vmid.toString(),
+        hostname,
+        cores: cores.toString(),
+        memory: memory.toString(),
+        swap: '512',
+        rootfs: `local-lvm:${disk}`,
+        net0: 'name=eth0,bridge=vmbr0,ip=dhcp',
+        unprivileged: '1',
+        start: '1',
+        description: 'Saint // Cold Steel Bot Pod (Capacity: 5 Bots)',
+      }).toString();
+
+      const res = await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName}/lxc`, {
+        method: 'POST',
+        headers: {
+          Authorization: `PVEAPIToken=${tokenId}=${tokenSecret}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        timeoutMs: 8000,
+      });
+
+      const json: any = await res.json();
+      if (!res.ok) {
+        return {
+          success: false,
+          vmid,
+          message: `Proxmox returned error: ${json.message || res.statusText}`,
+        };
+      }
+
+      return {
+        success: true,
+        vmid,
+        taskId: json.data,
+        message: `LXC Container Pod ${vmid} ('${hostname}') provisioned successfully on Proxmox node '${nodeName}'.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        vmid,
+        message: `Failed to create LXC container on Proxmox: ${err.message}`,
+      };
+    }
+  }
 }
 
 export const proxmoxClient = new ProxmoxClient();

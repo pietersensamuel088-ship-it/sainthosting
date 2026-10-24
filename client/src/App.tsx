@@ -21,6 +21,16 @@ export function AppContent() {
   const mainContentRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    // Auto-route to console if ?bot=<id> is in URL or on console subdomain
+    const params = new URLSearchParams(window.location.search);
+    const botId = params.get('bot');
+    if (botId) {
+      setSelectedBotId(botId);
+      setActiveTab('console');
+    }
+  }, []);
+
+  useEffect(() => {
     if (mainContentRef.current) {
       gsap.fromTo(
         mainContentRef.current,
