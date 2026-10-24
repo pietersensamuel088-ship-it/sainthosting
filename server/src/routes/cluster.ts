@@ -13,7 +13,7 @@ router.get('/status', (req: Request, res: Response) => {
 });
 
 router.get('/telemetry', (req: Request, res: Response) => {
-  const telemetry = orchestrationEngine.getProxmoxTelemetry();
+  const telemetry = orchestrationEngine.getRealTelemetry();
   res.json({
     success: true,
     telemetry,

@@ -251,44 +251,50 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
           title={`ACTIVE BOT PROCESSES (${runningDeployments.length} RUNNING)`}
           tag="CONTAINERS::ACTIVE"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full text-left font-mono text-xs">
-              <thead>
-                <tr className="border-b border-zinc-800 text-zinc-500 text-[11px]">
-                  <th className="py-2 px-3">BOT IDENTIFIER</th>
-                  <th className="py-2 px-3">CONTAINER NODE</th>
-                  <th className="py-2 px-3">SLOT</th>
-                  <th className="py-2 px-3">RUNTIME</th>
-                  <th className="py-2 px-3">RAM</th>
-                  <th className="py-2 px-3">CPU</th>
-                  <th className="py-2 px-3">STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-900">
-                {runningDeployments.map((bot) => (
-                  <tr key={bot.id} className="hover:bg-charcoal-950/80 transition-colors">
-                    <td className="py-2.5 px-3">
-                      <div className="font-bold text-white">{bot.name}</div>
-                      <div className="text-[10px] text-zinc-500">{bot.id}</div>
-                    </td>
-                    <td className="py-2.5 px-3 text-zinc-300">{bot.containerId}</td>
-                    <td className="py-2.5 px-3">
-                      <span className="text-crimson-bright font-bold">[{bot.slotIndex}/5]</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-zinc-400">{bot.framework}</td>
-                    <td className="py-2.5 px-3 text-zinc-300">{bot.telemetry?.memoryMb} MB</td>
-                    <td className="py-2.5 px-3 text-zinc-300">{bot.telemetry?.cpuPercent}%</td>
-                    <td className="py-2.5 px-3">
-                      <span className="inline-flex items-center space-x-1 text-emerald-400 text-[11px]">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse"></span>
-                        <span>HEALTHY</span>
-                      </span>
-                    </td>
+          {runningDeployments.length === 0 ? (
+            <div className="py-8 text-center text-zinc-500 font-mono text-xs">
+              No active bot processes currently running. Real bots will appear here once approved from the verification gate.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left font-mono text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-zinc-500 text-[11px]">
+                    <th className="py-2 px-3">BOT IDENTIFIER</th>
+                    <th className="py-2 px-3">CONTAINER NODE</th>
+                    <th className="py-2 px-3">SLOT</th>
+                    <th className="py-2 px-3">RUNTIME</th>
+                    <th className="py-2 px-3">RAM</th>
+                    <th className="py-2 px-3">CPU</th>
+                    <th className="py-2 px-3">STATUS</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-900">
+                  {runningDeployments.map((bot) => (
+                    <tr key={bot.id} className="hover:bg-charcoal-950/80 transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-white">{bot.name}</div>
+                        <div className="text-[10px] text-zinc-500">{bot.id}</div>
+                      </td>
+                      <td className="py-2.5 px-3 text-zinc-300">{bot.containerId}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="text-crimson-bright font-bold">[{bot.slotIndex}/5]</span>
+                      </td>
+                      <td className="py-2.5 px-3 text-zinc-400">{bot.framework}</td>
+                      <td className="py-2.5 px-3 text-zinc-300">{bot.telemetry?.memoryMb} MB</td>
+                      <td className="py-2.5 px-3 text-zinc-300">{bot.telemetry?.cpuPercent}%</td>
+                      <td className="py-2.5 px-3">
+                        <span className="inline-flex items-center space-x-1 text-emerald-400 text-[11px]">
+                          <span className="w-1.5 h-1.5 bg-emerald-500 animate-pulse"></span>
+                          <span>HEALTHY</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </TerminalBox>
       </section>
     </div>

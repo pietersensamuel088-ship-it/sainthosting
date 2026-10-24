@@ -1,14 +1,14 @@
 import React from 'react';
 import { useCluster } from '../context/ClusterContext';
-import { Cpu, HardDrive, Activity, Server, Thermometer, ShieldCheck } from 'lucide-react';
+import { Cpu, HardDrive, Server, ShieldCheck, Activity, Link2, Info } from 'lucide-react';
 
 export const TelemetryGrid: React.FC = () => {
   const { cluster } = useCluster();
 
   if (!cluster) {
     return (
-      <div className="p-8 text-center border border-zinc-800 text-zinc-500 font-mono text-sm animate-pulse">
-        [POLLING PROXMOX TELEMETRY STREAM...]
+      <div className="p-8 text-center border border-zinc-800 text-zinc-500 font-mono text-xs">
+        Loading system telemetry...
       </div>
     );
   }
@@ -17,103 +17,99 @@ export const TelemetryGrid: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Hypervisor Hardware Telemetry Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {/* CPU */}
-        <div className="bg-charcoal-900 border border-zinc-800 p-3 hover:border-crimson-dark/50 transition-colors">
-          <div className="flex items-center justify-between text-zinc-500 text-xs mb-1">
-            <span className="flex items-center gap-1">
-              <Cpu className="w-3.5 h-3.5 text-crimson-bright" />
-              <span>CPU LOAD</span>
+      {/* Real Hardware & OS Telemetry (Zero Fake Numbers) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Real CPU Info */}
+        <div className="bg-charcoal-900 border border-zinc-800 p-4">
+          <div className="flex items-center justify-between text-zinc-400 text-xs mb-1">
+            <span className="flex items-center gap-1.5 font-bold text-white">
+              <Cpu className="w-4 h-4 text-crimson-bright" />
+              <span>HOST PROCESSOR</span>
             </span>
-            <span className="font-mono text-white">{telemetry.cpuUtilizationPercent}%</span>
+            <span className="font-mono text-zinc-300">{telemetry.cpuCores} Cores</span>
           </div>
-          <div className="w-full bg-zinc-950 h-1.5 border border-zinc-800">
+          <div className="text-xs text-zinc-300 font-mono mt-2 truncate" title={telemetry.cpuModel}>
+            {telemetry.cpuModel}
+          </div>
+          <div className="text-[11px] text-zinc-500 font-mono mt-1">
+            OS: {telemetry.serverPlatform}
+          </div>
+        </div>
+
+        {/* Real Host RAM */}
+        <div className="bg-charcoal-900 border border-zinc-800 p-4">
+          <div className="flex items-center justify-between text-zinc-400 text-xs mb-1">
+            <span className="flex items-center gap-1.5 font-bold text-white">
+              <Activity className="w-4 h-4 text-crimson-bright" />
+              <span>SYSTEM RAM</span>
+            </span>
+            <span className="font-mono text-white">{telemetry.memoryUsagePercent}% used</span>
+          </div>
+          <div className="w-full bg-zinc-950 h-1.5 border border-zinc-800 my-2">
             <div
-              className="bg-crimson-bright h-full transition-all duration-500 shadow-crimson-glow"
-              style={{ width: `${Math.min(100, telemetry.cpuUtilizationPercent)}%` }}
+              className="bg-crimson-bright h-full transition-all duration-300"
+              style={{ width: `${Math.min(100, telemetry.memoryUsagePercent)}%` }}
             ></div>
           </div>
-          <div className="text-[10px] text-zinc-600 font-mono mt-1">16 vCPUs (AMD EPYC)</div>
-        </div>
-
-        {/* RAM */}
-        <div className="bg-charcoal-900 border border-zinc-800 p-3 hover:border-crimson-dark/50 transition-colors">
-          <div className="flex items-center justify-between text-zinc-500 text-xs mb-1">
-            <span className="flex items-center gap-1">
-              <Activity className="w-3.5 h-3.5 text-crimson-bright" />
-              <span>RAM POOL</span>
-            </span>
-            <span className="font-mono text-white">{telemetry.ramUsagePercent}%</span>
-          </div>
-          <div className="w-full bg-zinc-950 h-1.5 border border-zinc-800">
-            <div
-              className="bg-crimson-bright h-full transition-all duration-500 shadow-crimson-glow"
-              style={{ width: `${Math.min(100, telemetry.ramUsagePercent)}%` }}
-            ></div>
-          </div>
-          <div className="text-[10px] text-zinc-600 font-mono mt-1">
-            {telemetry.usedRamGb} GB / {telemetry.totalRamGb} GB ECC
+          <div className="text-[11px] text-zinc-400 font-mono">
+            {telemetry.usedSystemMemoryGb} GB / {telemetry.totalSystemMemoryGb} GB Total
           </div>
         </div>
 
-        {/* NVMe IO */}
-        <div className="bg-charcoal-900 border border-zinc-800 p-3 hover:border-crimson-dark/50 transition-colors">
-          <div className="flex items-center justify-between text-zinc-500 text-xs mb-1">
-            <span className="flex items-center gap-1">
-              <HardDrive className="w-3.5 h-3.5 text-crimson-bright" />
-              <span>NVMe I/O</span>
+        {/* Real Node Process Memory */}
+        <div className="bg-charcoal-900 border border-zinc-800 p-4">
+          <div className="flex items-center justify-between text-zinc-400 text-xs mb-1">
+            <span className="flex items-center gap-1.5 font-bold text-white">
+              <HardDrive className="w-4 h-4 text-crimson-bright" />
+              <span>PROCESS RSS</span>
             </span>
-            <span className="font-mono text-white">{telemetry.nvmeReadMbps} MB/s</span>
+            <span className="font-mono text-emerald-400">ACTIVE</span>
           </div>
-          <div className="text-[10px] text-zinc-400 font-mono mt-2">
-            Write: <span className="text-white">{telemetry.nvmeWriteMbps} MB/s</span> (ZFS Pool)
+          <div className="text-base font-bold text-white font-mono mt-1">
+            {telemetry.nodeProcessMemoryMb} MB
+          </div>
+          <div className="text-[11px] text-zinc-500 font-mono mt-1">
+            Node Server Uptime: {Math.floor(telemetry.serverUptimeSeconds / 60)} min
           </div>
         </div>
 
-        {/* Temp & Status */}
-        <div className="bg-charcoal-900 border border-zinc-800 p-3 hover:border-crimson-dark/50 transition-colors">
-          <div className="flex items-center justify-between text-zinc-500 text-xs mb-1">
-            <span className="flex items-center gap-1">
-              <Thermometer className="w-3.5 h-3.5 text-crimson-bright" />
-              <span>CHASSIS</span>
+        {/* Proxmox API Status */}
+        <div className="bg-charcoal-900 border border-zinc-800 p-4">
+          <div className="flex items-center justify-between text-zinc-400 text-xs mb-1">
+            <span className="flex items-center gap-1.5 font-bold text-white">
+              <Link2 className="w-4 h-4 text-crimson-bright" />
+              <span>PROXMOX API</span>
             </span>
-            <span className="font-mono text-white">{telemetry.nodeTemperatureC}°C</span>
-          </div>
-          <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono mt-2">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-none animate-ping"></span>
-            <span>{telemetry.status}</span>
-          </div>
-        </div>
-
-        {/* Proxmox Host */}
-        <div className="bg-charcoal-900 border border-zinc-800 p-3 hover:border-crimson-dark/50 transition-colors col-span-2 md:col-span-1">
-          <div className="flex items-center justify-between text-zinc-500 text-xs mb-1">
-            <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3.5 h-3.5 text-crimson-bright" />
-              <span>HYPERVISOR</span>
+            <span
+              className={`text-[10px] font-mono font-bold px-1.5 py-0.5 ${
+                telemetry.proxmoxIntegration.configured
+                  ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
+                  : 'bg-zinc-800 text-zinc-400'
+              }`}
+            >
+              {telemetry.proxmoxIntegration.status}
             </span>
-            <span className="font-mono text-white">PVE 8.2</span>
           </div>
-          <div className="text-[10px] text-zinc-500 font-mono mt-2 truncate" title={telemetry.kernelVersion}>
-            {telemetry.nodeName}
+          <div className="text-[11px] text-zinc-400 font-mono mt-2 leading-tight">
+            {telemetry.proxmoxIntegration.configured ? (
+              <span className="text-white">Connected to {telemetry.proxmoxIntegration.host}</span>
+            ) : (
+              <span className="text-zinc-500">Awaiting live Proxmox credentials in .env</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 5-Bot Cluster Ceiling Containers Grid */}
+      {/* Real Container Allocation & 5-Slot Packing */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 text-xs font-mono">
             <Server className="w-4 h-4 text-crimson-bright" />
-            <span className="text-white font-bold tracking-wider">PROXMOX LXC / DOCKER POD PACKING</span>
-            <span className="text-zinc-600">|</span>
-            <span className="text-zinc-400">HARD CEILING: 5 BOTS PER STRUCTURAL NODE</span>
+            <span className="text-white font-bold tracking-wide">CONTAINER SLOTS (5 BOTS PER CONTAINER)</span>
           </div>
           <div className="text-xs font-mono text-zinc-400">
-            Active: <span className="text-white font-bold">{cluster.activeBotsCount}</span> / Pool:{' '}
-            <span className="text-crimson-bright font-bold">{cluster.totalSlots}</span> (
-            <span className="text-emerald-400">{cluster.remainingSlots} free</span>)
+            Real Active Bots: <span className="text-white font-bold">{cluster.activeBotsCount}</span> / Capacity:{' '}
+            <span className="text-crimson-bright font-bold">{cluster.totalSlots}</span> slots
           </div>
         </div>
 
@@ -123,53 +119,43 @@ export const TelemetryGrid: React.FC = () => {
             return (
               <div
                 key={c.id}
-                className={`p-4 bg-charcoal-900/90 border transition-all ${
-                  isFull
-                    ? 'border-crimson-bright/70 shadow-crimson-glow'
-                    : 'border-zinc-800 hover:border-crimson-dark'
-                }`}
+                className="p-4 bg-charcoal-900 border border-zinc-800 hover:border-zinc-700 transition-colors"
               >
-                <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2 mb-3">
+                <div className="flex items-center justify-between border-b border-zinc-800 pb-2 mb-3">
                   <div className="flex items-center space-x-2">
                     <span
                       className={`w-2 h-2 ${
-                        isFull ? 'bg-crimson-bright animate-pulse' : 'bg-emerald-500'
+                        isFull ? 'bg-crimson-bright' : 'bg-emerald-500'
                       }`}
                     ></span>
                     <span className="font-mono font-bold text-sm text-white">{c.label}</span>
                     <span className="text-xs text-zinc-500 font-mono">[{c.id}]</span>
                   </div>
-                  <span
-                    className={`text-[10px] font-mono px-2 py-0.5 font-bold ${
-                      isFull
-                        ? 'bg-crimson-bright text-pitch uppercase'
-                        : 'bg-zinc-800 text-zinc-300'
-                    }`}
-                  >
-                    {isFull ? 'MAX CEILING (5/5)' : `${c.allocatedBots.length}/5 BOTS`}
+                  <span className="text-xs font-mono px-2 py-0.5 bg-zinc-800 text-zinc-300">
+                    {c.allocatedBots.length} / 5 BOTS ALLOCATED
                   </span>
                 </div>
 
-                {/* The 5 discrete slot visualizer */}
-                <div className="grid grid-cols-5 gap-1.5 mb-3">
+                {/* 5 Slots Display */}
+                <div className="grid grid-cols-5 gap-2 mb-3">
                   {[0, 1, 2, 3, 4].map((slotIdx) => {
                     const botId = c.allocatedBots[slotIdx];
                     const isOccupied = Boolean(botId);
                     return (
                       <div
                         key={slotIdx}
-                        className={`p-2 border text-center font-mono text-xs transition-all ${
+                        className={`p-2 border text-center font-mono text-xs ${
                           isOccupied
-                            ? 'border-crimson-bright bg-crimson-blood/30 text-white font-bold shadow-crimson-glow'
-                            : 'border-dashed border-zinc-800 bg-pitch/60 text-zinc-600'
+                            ? 'border-crimson-bright bg-crimson-blood/20 text-white font-bold'
+                            : 'border-dashed border-zinc-800 bg-pitch/50 text-zinc-600'
                         }`}
                       >
-                        <div className="text-[9px] text-zinc-500">SLOT {slotIdx + 1}</div>
-                        <div className="text-[10px] truncate mt-0.5">
+                        <div className="text-[10px] text-zinc-500">SLOT {slotIdx + 1}</div>
+                        <div className="text-[11px] truncate mt-1">
                           {isOccupied ? (
-                            <span className="text-white">ACTIVE</span>
+                            <span className="text-crimson-bright font-bold">OCCUPIED</span>
                           ) : (
-                            <span className="text-zinc-600">EMPTY</span>
+                            <span className="text-zinc-600">OPEN</span>
                           )}
                         </div>
                       </div>
@@ -177,10 +163,10 @@ export const TelemetryGrid: React.FC = () => {
                   })}
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono pt-1 border-t border-zinc-900">
-                  <span>Host: {c.nodeHost}</span>
-                  <span>RAM: {c.usedMemoryMb}MB / {c.allocatedMemoryMb}MB</span>
+                <div className="flex items-center justify-between text-xs text-zinc-500 font-mono pt-1">
+                  <span>Host Node: {c.nodeHost}</span>
                   <span>vCPU: {c.cpuCores} cores</span>
+                  <span>RAM Allocation: {c.allocatedMemoryMb}MB</span>
                 </div>
               </div>
             );

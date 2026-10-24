@@ -41,22 +41,27 @@ export interface ClusterContainer {
   maxBots: 5;
   cpuCores: number;
   allocatedMemoryMb: number;
-  usedMemoryMb: number;
   uptimeSeconds: number;
 }
 
-export interface ProxmoxTelemetry {
-  nodeName: string;
-  status: 'ONLINE' | 'DEGRADED' | 'MAINTENANCE';
-  cpuUtilizationPercent: number;
-  ramUsagePercent: number;
-  totalRamGb: number;
-  usedRamGb: number;
-  nvmeReadMbps: number;
-  nvmeWriteMbps: number;
-  nodeTemperatureC: number;
-  pveVersion: string;
-  kernelVersion: string;
+export interface RealSystemTelemetry {
+  serverHost: string;
+  serverPlatform: string;
+  serverUptimeSeconds: number;
+  cpuCores: number;
+  cpuModel: string;
+  totalSystemMemoryGb: number;
+  usedSystemMemoryGb: number;
+  freeSystemMemoryGb: number;
+  memoryUsagePercent: number;
+  nodeProcessMemoryMb: number;
+  proxmoxIntegration: {
+    configured: boolean;
+    host: string;
+    nodeName: string;
+    status: 'CONNECTED' | 'STANDBY_AWAITING_CONFIG';
+    notice: string;
+  };
 }
 
 export interface CapacityAlertState {
@@ -73,7 +78,7 @@ export interface ClusterData {
   remainingSlots: number;
   pendingCount: number;
   capacityTrigger: CapacityAlertState;
-  telemetry: ProxmoxTelemetry;
+  telemetry: RealSystemTelemetry;
 }
 
 interface ClusterContextType {
@@ -122,7 +127,6 @@ export const ClusterProvider: React.FC<{ children: ReactNode }> = ({ children })
         setIsAdmin(false);
       }
     } catch (err) {
-      // not logged in
       setIsAdmin(false);
     }
   };
@@ -137,7 +141,7 @@ export const ClusterProvider: React.FC<{ children: ReactNode }> = ({ children })
 
   useEffect(() => {
     refreshCluster();
-    const interval = setInterval(fetchStatus, 4000);
+    const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
   }, []);
 

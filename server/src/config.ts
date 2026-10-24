@@ -37,4 +37,12 @@ export const config = {
     'https://*.sa1nt.xyz',
   ],
   maxBotsPerContainer: 5,
+  // Real Proxmox VE Connection Parameters
+  proxmox: {
+    host: process.env.PROXMOX_HOST || '',
+    port: process.env.PROXMOX_PORT ? parseInt(process.env.PROXMOX_PORT, 10) : 8006,
+    tokenId: process.env.PROXMOX_API_TOKEN_ID || '',
+    tokenSecret: process.env.PROXMOX_API_TOKEN_SECRET || '',
+    nodeName: process.env.PROXMOX_NODE_NAME || 'pve',
+  },
 };
