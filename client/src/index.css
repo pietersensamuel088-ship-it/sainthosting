@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #000000;
+    color: #d4d4d8;
+    font-family: 'JetBrains Mono', monospace;
+    background-image: 
+      radial-gradient(circle at 50% 0%, rgba(153, 0, 0, 0.12) 0%, transparent 60%),
+      linear-gradient(to bottom, #000000, #060606, #000000);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  /* Custom Hardcore Tactical Scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #000000;
+    border-left: 1px solid #141414;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #660000;
+    border-radius: 0px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #FF0000;
+    box-shadow: 0 0 10px #FF0000;
+  }
+}
+
+/* 1px pixel border helper */
+.border-pixel-crimson {
+  border: 1px solid rgba(255, 0, 0, 0.25);
+}
+
+.border-pixel-crimson-active {
+  border: 1px solid #FF0000;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.35);
+}
+
+/* Blinking terminal cursor */
+.terminal-cursor::after {
+  content: '▋';
+  color: #FF0000;
+  display: inline-block;
+  margin-left: 2px;
+  animation: blink 1s step-start infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
