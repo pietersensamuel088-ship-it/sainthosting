@@ -5,7 +5,7 @@ import { orchestrationEngine } from '../engine/orchestration.js';
 import { generateAdminToken, requireAdminAuth } from '../middleware/auth.js';
 import { config } from '../config.js';
 import { sanitizeString } from '../middleware/sanitization.js';
-import { proxmoxClient } from '../engine/proxmoxClient.js';
+import { proxmoxClient, normalizeProxmoxUrl } from '../engine/proxmoxClient.js';
 
 const router = Router();
 
@@ -194,8 +194,8 @@ router.post('/proxmox/save', requireAdminAuth, async (req: Request, res: Respons
   }
 
   // Update in-memory configuration
-  config.proxmox.host = host.trim();
-  config.proxmox.port = port ? parseInt(port, 10) : 8006;
+  config.proxmox.host = normalizeProxmoxUrl(host, port || 8006);
+  config.proxmox.port = port ? parseInt(port.toString(), 10) : 8006;
   config.proxmox.tokenId = tokenId.trim();
   config.proxmox.tokenSecret = tokenSecret.trim();
   config.proxmox.nodeName = (nodeName || 'pve').trim();

@@ -46,7 +46,7 @@
         }
       ],
       "id": "bot_ru6k0",
-      "status": "pending_approval",
+      "status": "rejected",
       "containerId": null,
       "slotIndex": null,
       "submittedAt": "2026-10-24T19:07:56.208Z",
@@ -55,6 +55,11 @@
           "stage": "Ingest",
           "message": "Bot 'wdsawd' registered to account user@discord.gg. Staged for review.",
           "timestamp": "21:07:56"
+        },
+        {
+          "stage": "Rejection",
+          "message": "Declined: Repository does not meet Cold Steel security standards.",
+          "timestamp": "21:42:36"
         }
       ],
       "telemetry": {
@@ -62,7 +67,8 @@
         "memoryMb": 0,
         "restarts": 0,
         "uptime": "0s"
-      }
+      },
+      "rejectionReason": "Repository does not meet Cold Steel security standards."
     },
     {
       "userId": "usr_7455f9cd10598bfa",
@@ -101,7 +107,7 @@
         }
       ],
       "id": "bot_s86my",
-      "status": "pending_approval",
+      "status": "rejected",
       "containerId": null,
       "slotIndex": null,
       "submittedAt": "2026-10-24T19:18:49.498Z",
@@ -110,6 +116,11 @@
           "stage": "Ingest",
           "message": "Bot 'wdadw' registered to account user@discord.gg. Staged for review.",
           "timestamp": "21:18:49"
+        },
+        {
+          "stage": "Rejection",
+          "message": "Declined: Repository does not meet Cold Steel security standards.",
+          "timestamp": "21:42:35"
         }
       ],
       "telemetry": {
@@ -117,7 +128,8 @@
         "memoryMb": 0,
         "restarts": 0,
         "uptime": "0s"
-      }
+      },
+      "rejectionReason": "Repository does not meet Cold Steel security standards."
     }
   ],
   "containers": [

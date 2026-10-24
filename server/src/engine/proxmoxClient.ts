@@ -1,4 +1,6 @@
 import https from 'https';
+import http from 'http';
+import { URL } from 'url';
 import { config } from '../config.js';
 
 export interface ProxmoxNodeStatusResponse {
@@ -18,16 +20,91 @@ export interface ProxmoxNodeStatusResponse {
   };
 }
 
-export class ProxmoxClient {
-  private agent: https.Agent;
+/**
+ * Normalizes any user-entered Proxmox host into a clean, valid URL without duplicate ports.
+ * Handles:
+ *   - 192.168.18.212
+ *   - 192.168.18.212:8006
+ *   - https://192.168.18.212:8006
+ *   - https://192.168.18.212:8006/
+ *   - http://pve.local:8006
+ */
+export function normalizeProxmoxUrl(rawHost: string, defaultPort: number | string = 8006): string {
+  let host = (rawHost || '').trim().replace(/\/+$/, '');
+  const port = parseInt(defaultPort.toString(), 10) || 8006;
 
-  constructor() {
-    // Proxmox typically uses self-signed SSL certificates for LAN IPs (e.g. 192.168.x.x)
-    this.agent = new https.Agent({
-      rejectUnauthorized: false,
-    });
+  let protocol = 'https:';
+  if (host.startsWith('http://')) {
+    protocol = 'http:';
+    host = host.slice(7);
+  } else if (host.startsWith('https://')) {
+    protocol = 'https:';
+    host = host.slice(8);
   }
 
+  // Strip any trailing path if user pasted /api2/...
+  host = host.split('/')[0];
+
+  // If port is already present in host string (e.g. 192.168.18.212:8006)
+  if (host.includes(':')) {
+    return `${protocol}//${host}`;
+  }
+
+  return `${protocol}//${host}:${port}`;
+}
+
+/**
+ * Sends an HTTP/HTTPS request to Proxmox VE API, automatically trusting
+ * self-signed certificates on local network IPs (e.g. 192.168.x.x).
+ */
+function pveRequest(urlStr: string, options: { method?: string; headers?: Record<string, string>; timeoutMs?: number }) {
+  return new Promise<{ ok: boolean; status: number; statusText: string; json: () => Promise<any>; text: () => Promise<string> }>((resolve, reject) => {
+    try {
+      const parsedUrl = new URL(urlStr);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const lib = isHttps ? https : http;
+
+      const req = lib.request(
+        parsedUrl,
+        {
+          method: options.method || 'GET',
+          headers: options.headers,
+          rejectUnauthorized: false, // Explicitly permit self-signed PVE certificates
+          timeout: options.timeoutMs || 8000,
+        },
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (chunk) => chunks.push(chunk));
+          res.on('end', () => {
+            const body = Buffer.concat(chunks).toString('utf-8');
+            resolve({
+              ok: (res.statusCode || 0) >= 200 && (res.statusCode || 0) < 300,
+              status: res.statusCode || 500,
+              statusText: res.statusMessage || '',
+              text: async () => body,
+              json: async () => JSON.parse(body),
+            });
+          });
+        }
+      );
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error(`Connection timed out after ${(options.timeoutMs || 8000) / 1000}s. Verify Proxmox host IP and port 8006.`));
+      });
+
+      req.on('error', (err: any) => {
+        reject(err);
+      });
+
+      req.end();
+    } catch (err: any) {
+      reject(new Error(`Failed to parse URL from ${urlStr}: ${err.message}`));
+    }
+  });
+}
+
+export class ProxmoxClient {
   /**
    * Tests connection to Proxmox VE API using API Token
    * Format of tokenId: 'user@pam!tokenname'
@@ -35,7 +112,7 @@ export class ProxmoxClient {
    */
   public async testConnection(params: {
     host: string;
-    port?: number;
+    port?: number | string;
     tokenId: string;
     tokenSecret: string;
     nodeName?: string;
@@ -49,25 +126,18 @@ export class ProxmoxClient {
       };
     }
 
-    // Clean host URL (strip trailing slash and protocol if provided)
-    let cleanHost = host.trim().replace(/\/$/, '');
-    if (!cleanHost.startsWith('http://') && !cleanHost.startsWith('https://')) {
-      cleanHost = `https://${cleanHost}:${port}`;
-    } else if (!cleanHost.includes(':', 7)) {
-      cleanHost = `${cleanHost}:${port}`;
-    }
-
-    const authHeader = `PVEAPIToken=${tokenId}=${tokenSecret}`;
+    const cleanHost = normalizeProxmoxUrl(host, port);
+    const authHeader = `PVEAPIToken=${tokenId.trim()}=${tokenSecret.trim()}`;
 
     try {
       // 1. Query Proxmox VE Version
-      const versionRes = await fetch(`${cleanHost}/api2/json/version`, {
+      const versionRes = await pveRequest(`${cleanHost}/api2/json/version`, {
         method: 'GET',
         headers: {
           Authorization: authHeader,
           Accept: 'application/json',
         },
-        signal: AbortSignal.timeout(6000),
+        timeoutMs: 7000,
       });
 
       if (!versionRes.ok) {
@@ -80,17 +150,18 @@ export class ProxmoxClient {
 
       const versionData: any = await versionRes.json();
       const pveRelease = versionData?.data?.release || 'Proxmox VE';
+      const pveVersion = versionData?.data?.version || '8.x';
 
       // 2. Query Target Node Status
       let nodeData = null;
       try {
-        const nodeRes = await fetch(`${cleanHost}/api2/json/nodes/${nodeName}/status`, {
+        const nodeRes = await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName.trim()}/status`, {
           method: 'GET',
           headers: {
             Authorization: authHeader,
             Accept: 'application/json',
           },
-          signal: AbortSignal.timeout(6000),
+          timeoutMs: 5000,
         });
         if (nodeRes.ok) {
           const json: any = await nodeRes.json();
@@ -103,13 +174,13 @@ export class ProxmoxClient {
       return {
         success: true,
         message: `Successfully connected to Proxmox VE (${pveRelease}).`,
-        version: `${pveRelease} v${versionData?.data?.version || '8.x'}`,
+        version: `${pveRelease} v${pveVersion}`,
         nodeStatus: nodeData,
       };
     } catch (err: any) {
       return {
         success: false,
-        message: `Connection failed: ${err.message}. Make sure your Proxmox server IP and port 8006 are reachable on your network.`,
+        message: `Connection failed: ${err.message}. Make sure your Proxmox server IP (${cleanHost}) is reachable.`,
       };
     }
   }
@@ -121,19 +192,16 @@ export class ProxmoxClient {
     const { host, port = 8006, tokenId, tokenSecret, nodeName } = config.proxmox;
     if (!host || !tokenId || !tokenSecret) return null;
 
-    let cleanHost = host.trim().replace(/\/$/, '');
-    if (!cleanHost.startsWith('http://') && !cleanHost.startsWith('https://')) {
-      cleanHost = `https://${cleanHost}:${port}`;
-    }
+    const cleanHost = normalizeProxmoxUrl(host, port);
 
     try {
-      const res = await fetch(`${cleanHost}/api2/json/nodes/${nodeName}/status`, {
+      const res = await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName}/status`, {
         method: 'GET',
         headers: {
           Authorization: `PVEAPIToken=${tokenId}=${tokenSecret}`,
           Accept: 'application/json',
         },
-        signal: AbortSignal.timeout(5000),
+        timeoutMs: 5000,
       });
 
       if (res.ok) {
