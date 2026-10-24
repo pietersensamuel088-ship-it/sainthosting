@@ -4,6 +4,7 @@ export interface SlashCommandDef {
   name: string;
   description: string;
   parameters?: string;
+  ephemeral?: boolean;
 }
 
 export interface BotDeployment {

@@ -77,7 +77,7 @@ export const AuthModal: React.FC = () => {
         {/* Security Prompt */}
         <div className="mb-5 p-2.5 bg-pitch border border-zinc-800 flex items-center space-x-2 text-[11px] font-mono text-zinc-400">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span>256-bit encryption • Zero tracking • HTTP-only sessions</span>
+          <span>Secure authentication • Zero tracking • Protected session</span>
         </div>
 
         {error && (

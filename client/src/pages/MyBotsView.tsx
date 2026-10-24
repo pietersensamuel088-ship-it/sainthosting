@@ -189,7 +189,7 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate }) => {
                           : 'bg-zinc-800 text-zinc-400'
                       }`}
                     >
-                      {b.status === 'running' ? 'Running 24/7' : b.status === 'pending_approval' ? 'Queued / Review' : b.status}
+                      {b.status === 'running' ? 'Active Online' : b.status === 'pending_approval' ? 'Queued / Review' : b.status}
                     </span>
                   </div>
 
@@ -239,8 +239,8 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate }) => {
                   </div>
                   <div className="text-[11px] text-zinc-400 mt-0.5">
                     {selectedBot.status === 'running'
-                      ? `Active inside Proxmox pod ${selectedBot.containerId} at Slot [${selectedBot.slotIndex}/5].`
-                      : 'Saint has received your submission. Once reviewed, it spins up in a container with continuous uptime.'}
+                      ? `Active inside Proxmox pod ${selectedBot.containerId} at Slot [${selectedBot.slotIndex}/5] (high community uptime, subject to cluster maintenance).`
+                      : 'Saint has received your submission. Once reviewed, it spins up in a container with reliable community hosting.'}
                   </div>
                 </div>
               </div>

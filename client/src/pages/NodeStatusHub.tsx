@@ -136,8 +136,8 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
           ref={descRef}
           className="text-sm sm:text-base text-zinc-300 leading-relaxed"
         >
-          Run your bots 24/7 without surprise fees or sleep timeouts. Need a bot built from scratch? 
-          We'll write the logic. Already have code? We'll host it immediately.
+          High-uptime free community hosting for Discord bots. Need a bot built from scratch? 
+          We'll write the logic. Already have code? We'll host it with dedicated resources.
         </p>
       </section>
 
@@ -199,7 +199,7 @@ export const NodeStatusHub: React.FC<NodeStatusHubProps> = ({ onNavigate }) => {
             </h2>
 
             <p className="text-xs text-zinc-400 leading-relaxed mb-6">
-              Already have a public GitHub repo? Paste your link and we'll spin it up in an isolated Docker container with 24/7 uptime.
+              Already have a public GitHub repo? Paste your link and we'll spin it up in an isolated Docker container with high community uptime.
             </p>
           </div>
 

@@ -66,14 +66,14 @@ export const PipelineHub: React.FC = () => {
       <div className="text-center space-y-2 border-b border-zinc-900 pb-6">
         <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-charcoal-900 border border-zinc-800 text-xs text-zinc-400">
           <GitBranch className="w-3.5 h-3.5 text-crimson-bright" />
-          <span>24/7 DOCKER BOT HOSTING</span>
+          <span>COMMUNITY DISCORD BOT HOSTING</span>
         </div>
         <h1 className="text-2xl sm:text-4xl font-bold text-white uppercase">
           HOST YOUR DISCORD REPOSITORY
         </h1>
         <p className="text-xs sm:text-sm text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          Provide your public GitHub repository. Saint automatically isolates your code in a dedicated Docker sandbox 
-          with persistent 24/7 uptime, zero sleep intervals, and instant crash recovery.
+          Provide your public GitHub repository. Saint isolates your code in a dedicated Docker container 
+          with reliable community uptime and zero sleep intervals (online most of the time unless scheduled maintenance occurs).
         </p>
       </div>
 

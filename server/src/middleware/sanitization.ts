@@ -48,11 +48,12 @@ export function validateAndCleanGitHubUrl(url: string): { valid: boolean; cleane
 /**
  * Validates and sanitizes a slash command definition
  */
-export function sanitizeSlashCommand(name: string, description: string, parameters?: string): {
+export function sanitizeSlashCommand(name: string, description: string, parameters?: string, ephemeral?: boolean): {
   valid: boolean;
   name: string;
   description: string;
   parameters: string;
+  ephemeral: boolean;
   error?: string;
 } {
   let cleanName = (name || '').trim();
@@ -60,7 +61,7 @@ export function sanitizeSlashCommand(name: string, description: string, paramete
     cleanName = cleanName.substring(1);
   }
 
-  // Discord/Slack slash command format: 1-32 lowercase alphanumeric and dashes/underscores
+  // Discord slash command format: 1-32 lowercase alphanumeric and dashes/underscores
   const nameRegex = /^[a-z0-9_-]{1,32}$/i;
   if (!nameRegex.test(cleanName)) {
     return {
@@ -68,6 +69,7 @@ export function sanitizeSlashCommand(name: string, description: string, paramete
       name: '',
       description: '',
       parameters: '',
+      ephemeral: Boolean(ephemeral),
       error: `Command name '/${cleanName}' contains invalid characters. Use 1-32 alphanumeric characters, dashes, or underscores.`,
     };
   }
@@ -81,6 +83,7 @@ export function sanitizeSlashCommand(name: string, description: string, paramete
     name: `/${cleanName.toLowerCase()}`,
     description: cleanDesc,
     parameters: cleanParams,
+    ephemeral: Boolean(ephemeral),
   };
 }
 

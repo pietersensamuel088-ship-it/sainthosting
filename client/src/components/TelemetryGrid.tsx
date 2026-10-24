@@ -178,7 +178,7 @@ export const TelemetryGrid: React.FC = () => {
                           {isOccupied ? (
                             <div>
                               <div className="text-xs font-bold text-white truncate">{botId}</div>
-                              <div className="text-[10px] text-emerald-400 mt-0.5">● RUNNING 24/7</div>
+                              <div className="text-[10px] text-emerald-400 mt-0.5">● ACTIVE ONLINE</div>
                             </div>
                           ) : (
                             <div>

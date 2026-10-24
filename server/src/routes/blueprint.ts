@@ -29,19 +29,20 @@ router.post('/', requireUserAuth, submissionLimiter, (req: Request, res: Respons
   if (Array.isArray(slashCommands)) {
     for (const cmd of slashCommands) {
       if (!cmd || typeof cmd !== 'object') continue;
-      const cleanCmd = sanitizeSlashCommand(cmd.name, cmd.description, cmd.parameters);
+      const cleanCmd = sanitizeSlashCommand(cmd.name, cmd.description, cmd.parameters, cmd.ephemeral);
       if (cleanCmd.valid) {
         sanitizedCommands.push({
           name: cleanCmd.name,
           description: cleanCmd.description,
           parameters: cleanCmd.parameters,
+          ephemeral: cleanCmd.ephemeral,
         });
       }
     }
   }
 
   const cleanName = sanitizeString(botName);
-  const cleanFramework = sanitizeString(framework || 'Discord.js (Node.js)');
+  const cleanFramework = 'Discord.js v14';
   const cleanScope = sanitizeString(scopeSummary);
 
   // Validate Discord Customization

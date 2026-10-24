@@ -1,6 +1,70 @@
 {
-  "users": [],
-  "bots": [],
+  "users": [
+    {
+      "id": "usr_7455f9cd10598bfa",
+      "email": "user@discord.gg",
+      "username": "DiscordUser",
+      "provider": "discord",
+      "discordId": "discord_mvmru6jp",
+      "avatarUrl": "https://cdn.discordapp.com/embed/avatars/0.png",
+      "createdAt": "2026-10-24T19:07:56.197Z"
+    }
+  ],
+  "bots": [
+    {
+      "userId": "usr_7455f9cd10598bfa",
+      "userEmail": "user@discord.gg",
+      "type": "ai_blueprint",
+      "name": "wdsawd",
+      "framework": "Discord Bot (Discord.js v14)",
+      "scopeSummary": "dawdsawd",
+      "customization": {
+        "statusMode": "online",
+        "activityType": "Playing",
+        "activityText": "&#x2F;help | Saint Hosting",
+        "embedColor": "#18181A",
+        "embedFooterText": "Powered by Saint Hosting",
+        "enableTimestamps": true,
+        "intents": {
+          "messageContent": true,
+          "guildMembers": false,
+          "guildPresences": false
+        },
+        "ephemeralReplies": true,
+        "defaultAdminOnly": false
+      },
+      "slashCommands": [
+        {
+          "name": "/ping",
+          "description": "Checks bot latency and displays real-time container status.",
+          "parameters": "None"
+        },
+        {
+          "name": "/help",
+          "description": "Shows an embed list of all available commands and features.",
+          "parameters": "None"
+        }
+      ],
+      "id": "bot_ru6k0",
+      "status": "pending_approval",
+      "containerId": null,
+      "slotIndex": null,
+      "submittedAt": "2026-10-24T19:07:56.208Z",
+      "pipelineLogs": [
+        {
+          "stage": "Ingest",
+          "message": "Bot 'wdsawd' registered to account user@discord.gg. Staged for review.",
+          "timestamp": "21:07:56"
+        }
+      ],
+      "telemetry": {
+        "cpuPercent": 0,
+        "memoryMb": 0,
+        "restarts": 0,
+        "uptime": "0s"
+      }
+    }
+  ],
   "containers": [
     {
       "id": "lxc-node-101",
