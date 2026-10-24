@@ -17,6 +17,9 @@ import { sanitizeBodyMiddleware } from './middleware/sanitization.js';
 
 const app = express();
 
+// Trust Cloudflare Reverse Proxy headers (CF-Connecting-IP, X-Forwarded-For)
+app.set('trust proxy', 1);
+
 app.use(
   helmet({
     contentSecurityPolicy: {
@@ -26,7 +29,17 @@ app.use(
         styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
         fontSrc: ["'self'", 'https://fonts.gstatic.com'],
         imgSrc: ["'self'", 'data:', 'https:'],
-        connectSrc: ["'self'", `http://localhost:${config.clientPort}`, `http://localhost:${config.port}`, config.baseUrl, config.apiBaseUrl],
+        connectSrc: [
+          "'self'",
+          `http://localhost:${config.clientPort}`,
+          `http://localhost:${config.port}`,
+          config.baseUrl,
+          config.apiBaseUrl,
+          'https://*.sa1nt.xyz',
+          'https://sa1nt.xyz',
+          'wss://*.sa1nt.xyz',
+          'wss://sa1nt.xyz',
+        ],
       },
     },
     crossOriginEmbedderPolicy: false,
