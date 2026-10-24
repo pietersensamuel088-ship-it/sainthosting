@@ -7,6 +7,7 @@
     "dev:all": "concurrently -k -p \"[{name}]\" -n \"SERVER,CLIENT\" -c \"red.bold,white.bold\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
+    "clean:ports": "powershell -Command \"Get-NetTCPConnection -LocalPort 3000, 5000 -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }\"",
     "build": "npm --prefix server run build && npm --prefix client run build",
     "start": "npm --prefix server run start",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install"
