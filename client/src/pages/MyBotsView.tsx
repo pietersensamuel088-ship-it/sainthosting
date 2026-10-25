@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bot, GitBranch, Sparkles, Terminal, Activity, ArrowRight, ShieldCheck, Clock, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
+import { Bot, GitBranch, Sparkles, Terminal, Activity, ArrowRight, ShieldCheck, Clock, CheckCircle2, AlertCircle, RefreshCw, Trash2, ExternalLink } from 'lucide-react';
 
 interface BotData {
   id: string;
@@ -279,13 +279,19 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsol
                 <div className="space-y-1">
                   <div className="text-[10px] text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-crimson-bright" />
-                    <span>SUBDOMAIN WEB CONSOLE // ZERO PORT FORWARDING</span>
+                    <span>PTERODACTYL WEB CONSOLE // ZERO PORT FORWARDING</span>
                   </div>
-                  <div className="text-sm font-bold text-white select-all font-mono">
-                    {selectedBot.subdomainConsoleUrl || `https://${selectedBot.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.console.sa1nt.xyz`}
-                  </div>
+                  <a
+                    href={selectedBot.subdomainConsoleUrl || `https://console.sa1nt.xyz/?bot=${selectedBot.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-bold text-white hover:text-crimson-bright select-all font-mono flex items-center gap-1.5 transition-colors"
+                  >
+                    <span>{selectedBot.subdomainConsoleUrl || `https://console.sa1nt.xyz/?bot=${selectedBot.id}`}</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-zinc-400" />
+                  </a>
                   <div className="text-[10px] text-zinc-500">
-                    Live stream of daemon logs, Discord status sync, and container controls.
+                    Live Pterodactyl console, file editor (/home/container), Discord token sync, and daemon controls.
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -299,12 +305,17 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsol
                   </button>
 
                   <button
-                    onClick={() => onOpenConsole?.(selectedBot.id)}
+                    onClick={() => {
+                      const consoleTab = window.open(`/?bot=${selectedBot.id}`, '_blank');
+                      if (!consoleTab) {
+                        onOpenConsole?.(selectedBot.id);
+                      }
+                    }}
                     className="px-4 py-2.5 bg-crimson-bright hover:bg-crimson-dark text-white font-bold text-xs uppercase flex items-center justify-center space-x-2 shrink-0 border border-white transition-all shadow-crimson-glow"
                   >
                     <Terminal className="w-3.5 h-3.5" />
                     <span>OPEN CONSOLE</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>

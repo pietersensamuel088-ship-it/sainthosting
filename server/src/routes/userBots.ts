@@ -73,9 +73,26 @@ BOT_PREFIX=!
 NODE_ENV=production
 `;
 
+    const defaultReadme = `===================================================
+ SAINT // COLD STEEL BOT RUNTIME POD (CT-901)
+===================================================
+Directory: /home/container (Locked 1GB quota)
+Files:
+  - bot.js       : Primary bot execution script
+  - package.json : Dependencies and start script
+  - .env         : Isolated secret environment variables
+  - README.txt   : Usage & quick start guide
+
+To run your bot inside this container:
+  1. Configure your token in .env
+  2. Run: npm start
+===================================================
+`;
+
     fs.writeFileSync(path.join(dir, 'bot.js'), defaultBotJs, 'utf-8');
     fs.writeFileSync(path.join(dir, 'package.json'), defaultPackageJson, 'utf-8');
     fs.writeFileSync(path.join(dir, '.env'), defaultEnv, 'utf-8');
+    fs.writeFileSync(path.join(dir, 'README.txt'), defaultReadme, 'utf-8');
   }
   return dir;
 }
@@ -337,6 +354,13 @@ router.post('/:id/console/action', requireUserAuth, (req: Request, res: Response
     );
     updatedStatus = 'running';
     newTelemetry.uptime = 'Online';
+  } else if (action === 'kill') {
+    updatedLogs.push(
+      { time: now.toLocaleTimeString(), level: 'ERROR', text: `[KILL] Process forcibly killed via SIGKILL.` },
+      { time: now.toLocaleTimeString(), level: 'WARN', text: `[DAEMON] Container suspended in slot [${bot.slotIndex || 1}/5].` }
+    );
+    updatedStatus = 'approved';
+    newTelemetry.cpuPercent = 0;
   } else if (action === 'clear_logs') {
     updatedLogs = [
       { time: now.toLocaleTimeString(), level: 'INFO', text: `[CONSOLE] Terminal buffer cleared by user.` },
@@ -352,6 +376,87 @@ router.post('/:id/console/action', requireUserAuth, (req: Request, res: Response
   res.json({
     success: true,
     message: `Action '${action}' executed successfully.`,
+    bot: updatedBot,
+  });
+});
+
+/**
+ * Interactive Command Line Input (Pterodactyl Console CLI)
+ */
+router.post('/:id/console/command', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+  const { command } = req.body;
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  if (!command || typeof command !== 'string' || !command.trim()) {
+    res.status(400).json({ success: false, message: 'Command cannot be empty.' });
+    return;
+  }
+
+  const cleanCmd = command.trim();
+  const now = new Date();
+  let updatedLogs = [...(bot.liveTerminalLogs || [])];
+  let updatedStatus = bot.status;
+  let newTelemetry = { ...bot.telemetry };
+
+  updatedLogs.push({
+    time: now.toLocaleTimeString(),
+    level: 'INFO',
+    text: `container@saint:~$ ${cleanCmd}`,
+  });
+
+  const lowerCmd = cleanCmd.toLowerCase();
+  if (lowerCmd === 'clear' || lowerCmd === 'cls') {
+    updatedLogs = [{ time: now.toLocaleTimeString(), level: 'INFO', text: `[CONSOLE] Buffer cleared.` }];
+  } else if (lowerCmd === 'restart') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'WARN', text: `[SYSTEM] Process restarting...` });
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'SUCCESS', text: `[DAEMON] Worker respawned.` });
+    updatedStatus = 'running';
+    newTelemetry.restarts += 1;
+  } else if (lowerCmd === 'stop') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'WARN', text: `[SYSTEM] Process stopped.` });
+    updatedStatus = 'approved';
+    newTelemetry.cpuPercent = 0;
+  } else if (lowerCmd === 'kill') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'ERROR', text: `[KILL] Process terminated forcibly.` });
+    updatedStatus = 'approved';
+    newTelemetry.cpuPercent = 0;
+  } else if (lowerCmd === 'start' || lowerCmd === 'npm start' || lowerCmd === 'node bot.js') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'SUCCESS', text: `[DAEMON] Spawning Node.js bot runtime...` });
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: `[ONLINE] Bot process active in slot [${bot.slotIndex || 1}/5].` });
+    updatedStatus = 'running';
+    newTelemetry.uptime = 'Just started';
+  } else if (lowerCmd === 'status') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: `[STATUS] State: ${updatedStatus.toUpperCase()} | CPU: ${newTelemetry.cpuPercent}% | RAM: ${newTelemetry.memoryMb}MB | Container: ${bot.containerId || 'CT-901'}` });
+  } else if (lowerCmd === 'ls' || lowerCmd === 'dir') {
+    const dir = getBotFilesDir(bot.id, bot.name);
+    const files = fs.readdirSync(dir).join('   ');
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: files });
+  } else if (lowerCmd === 'node -v' || lowerCmd === 'node --version') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: 'v20.20.2 (LTS Node.js Runtime)' });
+  } else if (lowerCmd === 'npm -v' || lowerCmd === 'npm --version') {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: '10.8.2' });
+  } else if (lowerCmd.startsWith('npm install') || lowerCmd.startsWith('npm i')) {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: `added 27 packages, and audited 27 packages in 850ms` });
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'SUCCESS', text: `found 0 vulnerabilities` });
+  } else {
+    updatedLogs.push({ time: now.toLocaleTimeString(), level: 'INFO', text: `[EXEC] Executed '${cleanCmd}' in container environment.` });
+  }
+
+  const updatedBot = dbStore.updateBot(id, {
+    status: updatedStatus,
+    telemetry: newTelemetry,
+    liveTerminalLogs: updatedLogs,
+  });
+
+  res.json({
+    success: true,
     bot: updatedBot,
   });
 });

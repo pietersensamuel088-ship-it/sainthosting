@@ -46,6 +46,24 @@ export function AppContent() {
     setActiveTab('console');
   };
 
+  // Dedicated Full-Screen Pterodactyl Panel Mode (removes marketing header/footer)
+  if (activeTab === 'console' && selectedBotId) {
+    return (
+      <div className="min-h-screen bg-[#0d1017] text-[#c9d1d9] font-mono">
+        <BotConsoleView
+          botId={selectedBotId}
+          onBack={() => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('bot');
+            window.history.pushState({}, '', url.pathname + (url.search ? url.search : ''));
+            setActiveTab('mybots');
+          }}
+        />
+        <AuthModal />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-pitch text-silver flex flex-col selection:bg-crimson-bright selection:text-pitch font-mono">
       <Header
@@ -61,12 +79,6 @@ export function AppContent() {
           <MyBotsView
             onNavigate={setActiveTab}
             onOpenConsole={handleOpenConsole}
-          />
-        )}
-        {activeTab === 'console' && selectedBotId && (
-          <BotConsoleView
-            botId={selectedBotId}
-            onBack={() => setActiveTab('mybots')}
           />
         )}
         {activeTab === 'gatekeeper' && <GatekeeperNode />}
