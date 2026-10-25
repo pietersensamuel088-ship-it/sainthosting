@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Saint // Cold Steel Bot Hosting
 # Stage 1: Build Frontend & Backend (Debian glibc for rock-solid SQLite compatibility)
-FROM node:20-bookworm-slim AS builder
+FROM node:22-bookworm-slim AS builder
 
 WORKDIR /app
 
@@ -21,7 +21,7 @@ RUN npm --prefix client run build
 RUN npm --prefix server run build
 
 # Stage 2: Production Runner
-FROM node:20-bookworm-slim AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 
