@@ -303,6 +303,7 @@ export class ProxmoxClient {
         swap: '512',
         rootfs: `local-lvm:${disk}`,
         net0: 'name=eth0,bridge=vmbr0,ip=dhcp',
+        features: 'nesting=1',
         unprivileged: '1',
         start: '1',
         description: 'Saint // Cold Steel Bot Pod (Capacity: 5 Bots, 1GB quota per bot slot)',
