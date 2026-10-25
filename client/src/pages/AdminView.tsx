@@ -23,6 +23,9 @@ import {
   EyeOff,
   ChevronDown,
   ChevronUp,
+  Trash2,
+  Cpu,
+  Layers,
 } from 'lucide-react';
 
 interface AdminViewProps {
@@ -38,10 +41,14 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
     approveDeployment,
     rejectDeployment,
     provisionNode,
+    destroyNode,
+    deleteDeployment,
     refreshCluster,
   } = useCluster();
 
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [destroyingPodId, setDestroyingPodId] = useState<string | null>(null);
+  const [customPodLabel, setCustomPodLabel] = useState('');
   const [rejectReason, setRejectReason] = useState<{ [id: string]: string }>({});
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'alert' | 'error'; text: string } | null>(null);
 
@@ -206,7 +213,36 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
 
   const handleManualProvision = async () => {
     setStatusMessage(null);
-    const result = await provisionNode();
+    const result = await provisionNode(customPodLabel.trim() || undefined, 1, 1024);
+    setCustomPodLabel('');
+    if (result.success) {
+      setStatusMessage({ type: 'success', text: result.message });
+    } else {
+      setStatusMessage({ type: 'error', text: result.message });
+    }
+  };
+
+  const handleDestroyPod = async (containerId: string, label: string, vmid: number) => {
+    if (!window.confirm(`[DANGER] Are you sure you want to destroy LXC Pod "${label}" (VMID: ${vmid})?\n\nThis will stop and permanently purge the container from Proxmox VE and release cluster slots.`)) {
+      return;
+    }
+    setDestroyingPodId(containerId);
+    setStatusMessage(null);
+    const result = await destroyNode(containerId);
+    setDestroyingPodId(null);
+    if (result.success) {
+      setStatusMessage({ type: 'success', text: result.message });
+    } else {
+      setStatusMessage({ type: 'error', text: result.message });
+    }
+  };
+
+  const handleDeleteDeployment = async (botId: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete bot "${name}" (${botId})?\n\nThis will release its slot in the cluster and delete its runtime files.`)) {
+      return;
+    }
+    setStatusMessage(null);
+    const result = await deleteDeployment(botId);
     if (result.success) {
       setStatusMessage({ type: 'success', text: result.message });
     } else {
@@ -693,6 +729,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
                     <th className="py-2 px-3">RUNTIME</th>
                     <th className="py-2 px-3">RAM</th>
                     <th className="py-2 px-3">STATUS</th>
+                    <th className="py-2 px-3 text-right">ACTION</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-900">
@@ -717,12 +754,124 @@ export const AdminView: React.FC<AdminViewProps> = ({ onOpenAuth }) => {
                           <span>HEALTHY</span>
                         </span>
                       </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          onClick={() => handleDeleteDeployment(bot.id, bot.name)}
+                          className="px-2 py-1 bg-pitch hover:bg-red-950/40 border border-red-900/60 hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase transition-all"
+                          title="Terminate and release slot"
+                        >
+                          REMOVE
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+        </TerminalBox>
+      </section>
+
+      {/* Section 3: Cluster Pods Inventory (Proxmox LXC Nodes) */}
+      <section>
+        <TerminalBox
+          title={`PROXMOX CLUSTER PODS (${cluster?.containers?.length || 0} PODS ONLINE)`}
+          tag="HYPERVISOR::PODS"
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3 bg-pitch border border-zinc-900">
+              <div className="text-xs text-zinc-400">
+                Each LXC Pod holds up to <strong className="text-white">5 Bots</strong> with 1 vCPU and 1GB RAM. Destroying an LXC Pod permanently purges it from Proxmox.
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Custom label (optional)..."
+                  value={customPodLabel}
+                  onChange={(e) => setCustomPodLabel(e.target.value)}
+                  className="bg-charcoal-950 border border-zinc-800 text-white text-xs px-2.5 py-1.5 focus:border-crimson-bright focus:outline-none placeholder:text-zinc-700"
+                />
+                <button
+                  onClick={handleManualProvision}
+                  className="px-3 py-1.5 bg-crimson-bright hover:bg-crimson-dark text-white text-xs font-bold uppercase transition-all shadow-crimson-glow border border-white whitespace-nowrap flex items-center space-x-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>PROVISION NEW POD</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {cluster?.containers?.map((pod) => (
+                <div
+                  key={pod.id}
+                  className="p-4 bg-charcoal-950 border border-zinc-800 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-7 h-7 bg-pitch border border-zinc-700 flex items-center justify-center">
+                        <Layers className="w-3.5 h-3.5 text-crimson-bright" />
+                      </div>
+                      <div>
+                        <div className="text-white font-bold text-xs uppercase">{pod.label}</div>
+                        <div className="text-[10px] text-zinc-500 font-mono">VMID: {pod.vmid} • Host: {pod.nodeHost}</div>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[10px] px-2 py-0.5 border font-bold uppercase ${
+                        pod.status === 'packed_full'
+                          ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                          : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                      }`}
+                    >
+                      {pod.status === 'packed_full' ? 'PACKED FULL (5/5)' : `ACTIVE (${pod.allocatedBots?.length || 0}/5)`}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-[11px] bg-pitch p-2.5 border border-zinc-900">
+                    <div>
+                      <span className="text-zinc-500 block">vCPU Cores:</span>
+                      <span className="text-white font-bold">{pod.cpuCores} Core</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block">RAM:</span>
+                      <span className="text-white font-bold">{pod.allocatedMemoryMb} MB</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block">Slots Used:</span>
+                      <span className="text-crimson-bright font-bold">{pod.allocatedBots?.length || 0} / 5</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="text-[10px] text-zinc-500">
+                      {pod.vmid < 900 ? (
+                        <span className="text-zinc-400 flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                          <span>CORE SYSTEM HOST (PROTECTED)</span>
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400">PROXMOX UNPRIVILEGED LXC</span>
+                      )}
+                    </div>
+
+                    {pod.vmid >= 900 && (
+                      <button
+                        onClick={() => handleDestroyPod(pod.id, pod.label, pod.vmid)}
+                        disabled={destroyingPodId === pod.id}
+                        className="px-2.5 py-1 bg-pitch hover:bg-red-950/40 border border-red-900/60 hover:border-red-500 text-red-400 hover:text-red-300 text-[10px] font-bold uppercase flex items-center space-x-1 transition-all"
+                        title="Permanently stop and purge this container from Proxmox"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>{destroyingPodId === pod.id ? 'DESTROYING...' : 'DESTROY POD'}</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </TerminalBox>
       </section>
     </div>

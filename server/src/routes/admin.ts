@@ -140,13 +140,53 @@ router.post('/reject/:id', requireAdminAuth, (req: Request, res: Response): void
  * Expands cluster capacity and resolves capacity trigger alert
  */
 router.post('/provision-node', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
-  const { label } = req.body;
-  const newContainer = await orchestrationEngine.provisionProxmoxNode(label);
+  const { label, cores, memoryMb } = req.body;
+  const numCores = cores ? parseInt(cores.toString(), 10) : 1;
+  const numMem = memoryMb ? parseInt(memoryMb.toString(), 10) : 1024;
+  const newContainer = await orchestrationEngine.provisionProxmoxNode(label, numCores, numMem);
 
   res.status(201).json({
     success: true,
     message: `[PROXMOX_PROVISIONED] New virtual container node '${newContainer.label}' (${newContainer.id}) initialized. +5 bot slots added.`,
     container: newContainer,
+    clusterStatus: orchestrationEngine.getClusterStatus(),
+  });
+});
+
+/**
+ * Destroy / delete an LXC container pod (Purges from Proxmox VE and catalog)
+ */
+router.delete('/containers/:id', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
+  const { id } = req.params;
+  const result = await orchestrationEngine.destroyProxmoxNode(id);
+
+  if (!result.success) {
+    res.status(400).json(result);
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: result.message,
+    clusterStatus: orchestrationEngine.getClusterStatus(),
+  });
+});
+
+/**
+ * Delete / remove a bot deployment (releases container slot and deletes directory)
+ */
+router.delete('/deployments/:id', requireAdminAuth, (req: Request, res: Response): void => {
+  const { id } = req.params;
+  const result = orchestrationEngine.removeDeployment(id);
+
+  if (!result.success) {
+    res.status(404).json(result);
+    return;
+  }
+
+  res.json({
+    success: true,
+    message: result.message,
     clusterStatus: orchestrationEngine.getClusterStatus(),
   });
 });

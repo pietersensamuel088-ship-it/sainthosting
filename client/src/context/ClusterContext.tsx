@@ -101,7 +101,9 @@ interface ClusterContextType {
   logoutAdmin: () => Promise<void>;
   approveDeployment: (id: string) => Promise<{ success: boolean; message: string; capacityAlert?: boolean }>;
   rejectDeployment: (id: string, reason: string) => Promise<{ success: boolean; message: string }>;
-  provisionNode: (label?: string) => Promise<{ success: boolean; message: string }>;
+  provisionNode: (label?: string, cores?: number, memoryMb?: number) => Promise<{ success: boolean; message: string }>;
+  destroyNode: (id: string) => Promise<{ success: boolean; message: string }>;
+  deleteDeployment: (id: string) => Promise<{ success: boolean; message: string }>;
 }
 
 const ClusterContext = createContext<ClusterContextType | undefined>(undefined);
@@ -223,13 +225,43 @@ export const ClusterProvider: React.FC<{ children: ReactNode }> = ({ children })
     }
   };
 
-  const provisionNode = async (label?: string) => {
+  const provisionNode = async (label?: string, cores: number = 1, memoryMb: number = 1024) => {
     try {
       const res = await fetch('/api/admin/provision-node', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ label }),
+        body: JSON.stringify({ label, cores, memoryMb }),
+      });
+      const data = await res.json();
+      await fetchStatus();
+      await fetchDeployments();
+      return { success: data.success, message: data.message };
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  const destroyNode = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/containers/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      await fetchStatus();
+      await fetchDeployments();
+      return { success: data.success, message: data.message };
+    } catch (err: any) {
+      return { success: false, message: err.message };
+    }
+  };
+
+  const deleteDeployment = async (id: string) => {
+    try {
+      const res = await fetch(`/api/admin/deployments/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
       });
       const data = await res.json();
       await fetchStatus();
@@ -254,6 +286,8 @@ export const ClusterProvider: React.FC<{ children: ReactNode }> = ({ children })
         approveDeployment,
         rejectDeployment,
         provisionNode,
+        destroyNode,
+        deleteDeployment,
       }}
     >
       {children}

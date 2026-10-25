@@ -269,4 +269,29 @@ router.post('/:id/console/action', requireUserAuth, (req: Request, res: Response
   });
 });
 
+/**
+ * Delete a user's bot deployment
+ */
+router.delete('/:id', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+
+  const bot = dbStore.getBotById(id);
+  if (!bot) {
+    res.status(404).json({ success: false, message: 'Bot not found.' });
+    return;
+  }
+
+  if (bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Unauthorized action.' });
+    return;
+  }
+
+  const success = dbStore.deleteBot(id);
+  res.json({
+    success,
+    message: `Bot '${bot.name}' has been deleted and its pod slot released.`,
+  });
+});
+
 export default router;

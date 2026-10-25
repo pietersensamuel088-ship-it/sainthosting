@@ -350,7 +350,7 @@ class OrchestrationEngine {
     return { success: true, deployment: updated, message: `Bot ${id} rejected.` };
   }
 
-  public async provisionProxmoxNode(label?: string): Promise<ClusterContainerRecord> {
+  public async provisionProxmoxNode(label?: string, cores: number = 1, memoryMb: number = 1024): Promise<ClusterContainerRecord> {
     const containers = dbStore.getContainers();
     const nextVmid = await proxmoxClient.getNextSafeVmid();
     const nodeLabel = label?.trim() || `SAINT-POD-${containers.length + 1 < 10 ? '0' : ''}${containers.length + 1}`;
@@ -361,8 +361,8 @@ class OrchestrationEngine {
         await proxmoxClient.createLxcContainer({
           vmid: nextVmid,
           hostname: nodeLabel.toLowerCase(),
-          cores: 2,
-          memoryMb: 1024,
+          cores,
+          memoryMb,
         });
       } catch (err) {
         console.warn('[PROXMOX_PROVISION_NOTICE] Container staged in cluster catalog:', err);
@@ -377,8 +377,8 @@ class OrchestrationEngine {
       status: 'active',
       allocatedBots: [],
       maxBots: 5,
-      cpuCores: 2,
-      allocatedMemoryMb: 2048,
+      cpuCores: cores,
+      allocatedMemoryMb: memoryMb,
       uptimeSeconds: 0,
     };
 
@@ -391,6 +391,47 @@ class OrchestrationEngine {
     };
 
     return newContainer;
+  }
+
+  public async destroyProxmoxNode(containerId: string): Promise<{ success: boolean; message: string }> {
+    const containers = dbStore.getContainers();
+    const target = containers.find((c) => c.id === containerId);
+    if (!target) {
+      return { success: false, message: `Container pod '${containerId}' not found.` };
+    }
+
+    // Safety guard
+    if (target.vmid < 900) {
+      return {
+        success: false,
+        message: `[SECURITY_GUARD] Container VMID ${target.vmid} is protected core infrastructure and cannot be destroyed.`,
+      };
+    }
+
+    // Attempt to purge from Proxmox
+    if (config.proxmox.host && config.proxmox.tokenId) {
+      try {
+        await proxmoxClient.destroyLxcContainer(target.vmid);
+      } catch (err: any) {
+        console.warn('[PROXMOX_DESTROY_WARN]', err);
+      }
+    }
+
+    // Remove from database
+    dbStore.deleteContainer(containerId);
+
+    return {
+      success: true,
+      message: `Container Pod '${target.label}' (VMID ${target.vmid}) successfully destroyed.`,
+    };
+  }
+
+  public removeDeployment(id: string): { success: boolean; message: string } {
+    const deleted = dbStore.deleteBot(id);
+    if (!deleted) {
+      return { success: false, message: `Bot '${id}' not found.` };
+    }
+    return { success: true, message: `Bot '${id}' removed and slot released.` };
   }
 
   public getAllDeployments(status?: string): BotRecord[] {

@@ -518,6 +518,55 @@ class DatabaseStore {
       this.addContainer(merged);
     }
   }
+
+  public deleteBot(id: string): boolean {
+    const bot = this.getBotById(id);
+    if (!bot) return false;
+
+    // 1. Remove from container allocations
+    if (bot.containerId) {
+      const container = this.getContainers().find((c) => c.id === bot.containerId);
+      if (container) {
+        container.allocatedBots = container.allocatedBots.filter((bId) => bId !== id);
+        if (container.allocatedBots.length < container.maxBots && container.status === 'packed_full') {
+          container.status = 'active';
+        }
+        this.updateContainer(container.id, container);
+      }
+    }
+
+    // 2. Delete bot runtime files if exist
+    try {
+      const botDir = path.resolve(DB_DIR, 'bots', id);
+      if (fs.existsSync(botDir)) {
+        fs.rmSync(botDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.warn('[DELETE_BOT_DIR_WARN]', err);
+    }
+
+    // 3. Delete from database
+    const res = this.db.prepare('DELETE FROM bots WHERE id = ?').run(id);
+    return res.changes > 0;
+  }
+
+  public deleteContainer(id: string): boolean {
+    // 1. Unassign any bots linked to this container
+    const allBots = this.getAllBots();
+    for (const b of allBots) {
+      if (b.containerId === id) {
+        this.updateBot(b.id, {
+          containerId: null,
+          slotIndex: null,
+          status: 'pending_approval',
+        });
+      }
+    }
+
+    // 2. Remove container from database
+    const res = this.db.prepare('DELETE FROM containers WHERE id = ?').run(id);
+    return res.changes > 0;
+  }
 }
 
 export const dbStore = new DatabaseStore();

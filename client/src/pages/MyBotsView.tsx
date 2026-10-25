@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Bot, GitBranch, Sparkles, Terminal, Activity, ArrowRight, ShieldCheck, Clock, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Bot, GitBranch, Sparkles, Terminal, Activity, ArrowRight, ShieldCheck, Clock, CheckCircle2, AlertCircle, RefreshCw, Trash2 } from 'lucide-react';
 
 interface BotData {
   id: string;
@@ -65,6 +65,26 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsol
       console.error('Error fetching user bots:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteBot = async (botId: string, botName: string) => {
+    if (!window.confirm(`Are you sure you want to delete bot "${botName}"? This will terminate its process and free its container slot.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/user/bots/${botId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setBots((prev) => prev.filter((b) => b.id !== botId));
+        if (selectedBot?.id === botId) {
+          setSelectedBot(null);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete bot:', err);
     }
   };
 
@@ -268,14 +288,25 @@ export const MyBotsView: React.FC<MyBotsViewProps> = ({ onNavigate, onOpenConsol
                     Live stream of daemon logs, Discord status sync, and container controls.
                   </div>
                 </div>
-                <button
-                  onClick={() => onOpenConsole?.(selectedBot.id)}
-                  className="px-4 py-2.5 bg-crimson-bright hover:bg-crimson-dark text-white font-bold text-xs uppercase flex items-center justify-center space-x-2 shrink-0 border border-white transition-all shadow-crimson-glow"
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  <span>OPEN CONSOLE</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleDeleteBot(selectedBot.id, selectedBot.name)}
+                    className="px-3 py-2.5 bg-pitch hover:bg-red-950/40 text-red-400 hover:text-red-300 font-bold text-xs uppercase flex items-center justify-center space-x-1.5 shrink-0 border border-red-900/60 hover:border-red-500 transition-all"
+                    title="Terminate and delete bot"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>DELETE</span>
+                  </button>
+
+                  <button
+                    onClick={() => onOpenConsole?.(selectedBot.id)}
+                    className="px-4 py-2.5 bg-crimson-bright hover:bg-crimson-dark text-white font-bold text-xs uppercase flex items-center justify-center space-x-2 shrink-0 border border-white transition-all shadow-crimson-glow"
+                  >
+                    <Terminal className="w-3.5 h-3.5" />
+                    <span>OPEN CONSOLE</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Discord Customization Preview if configured */}

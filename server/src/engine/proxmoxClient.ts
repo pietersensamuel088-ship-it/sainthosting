@@ -287,7 +287,7 @@ export class ProxmoxClient {
 
     const cleanHost = normalizeProxmoxUrl(host, port);
     const vmid = params.vmid || (await this.getNextSafeVmid());
-    const cores = params.cores || 2;
+    const cores = params.cores || 1;
     const memory = params.memoryMb || 1024;
     const disk = params.diskGb || 8;
     const hostname = params.hostname || `saint-pod-${vmid}`;
@@ -339,6 +339,64 @@ export class ProxmoxClient {
         success: false,
         vmid,
         message: `Failed to create LXC container on Proxmox: ${err.message}`,
+      };
+    }
+  }
+
+  /**
+   * Safely stops and purges an LXC Container from Proxmox VE
+   * STRICT SAFETY GUARD: VMID must be >= 900. Will reject any attempt to touch VM 100/101.
+   */
+  public async destroyLxcContainer(vmid: number): Promise<{ success: boolean; message: string }> {
+    if (vmid < 900) {
+      return {
+        success: false,
+        message: `[SECURITY_GUARD] VMID ${vmid} is a protected core system VM and cannot be deleted.`,
+      };
+    }
+
+    const { host, port = 8006, tokenId, tokenSecret, nodeName } = config.proxmox;
+    if (!host || !tokenId || !tokenSecret) {
+      return { success: false, message: 'Proxmox API credentials not configured.' };
+    }
+
+    const cleanHost = normalizeProxmoxUrl(host, port);
+    const authHeader = `PVEAPIToken=${tokenId}=${tokenSecret}`;
+
+    try {
+      // 1. Attempt stop container first (ignore error if already stopped)
+      await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName}/lxc/${vmid}/status/stop`, {
+        method: 'POST',
+        headers: { Authorization: authHeader, 'Content-Length': '0' },
+        timeoutMs: 8000,
+      }).catch(() => {});
+
+      // Short wait for process termination
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // 2. Delete / purge LXC container
+      const delRes = await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName}/lxc/${vmid}?purge=1`, {
+        method: 'DELETE',
+        headers: { Authorization: authHeader },
+        timeoutMs: 15000,
+      });
+
+      if (!delRes.ok) {
+        const text = await delRes.text();
+        return {
+          success: false,
+          message: `Proxmox delete failed (${delRes.status}): ${text}`,
+        };
+      }
+
+      return {
+        success: true,
+        message: `LXC Pod ${vmid} successfully removed and purged from Proxmox node '${nodeName}'.`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: `Failed to destroy LXC on Proxmox: ${err.message}`,
       };
     }
   }
