@@ -298,6 +298,7 @@ export class ProxmoxClient {
         vmid: vmid.toString(),
         ostemplate,
         hostname,
+        password: config.adminPassword || 'Samuel5@/1',
         cores: cores.toString(),
         memory: memory.toString(),
         swap: '512',
