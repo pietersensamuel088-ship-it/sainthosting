@@ -63,18 +63,31 @@ export function normalizeProxmoxUrl(rawHost: string, defaultPort: number | strin
  * Sends an HTTP/HTTPS request to Proxmox VE API, automatically trusting
  * self-signed certificates on local network IPs (e.g. 192.168.x.x).
  */
-function pveRequest(urlStr: string, options: { method?: string; headers?: Record<string, string>; timeoutMs?: number }) {
+function pveRequest(
+  urlStr: string,
+  options: {
+    method?: string;
+    headers?: Record<string, string>;
+    timeoutMs?: number;
+    body?: string;
+  }
+) {
   return new Promise<{ ok: boolean; status: number; statusText: string; json: () => Promise<any>; text: () => Promise<string> }>((resolve, reject) => {
     try {
       const parsedUrl = new URL(urlStr);
       const isHttps = parsedUrl.protocol === 'https:';
       const lib = isHttps ? https : http;
 
+      const headers = { ...(options.headers || {}) };
+      if (options.body && !headers['Content-Length']) {
+        headers['Content-Length'] = Buffer.byteLength(options.body).toString();
+      }
+
       const req = lib.request(
         parsedUrl,
         {
           method: options.method || 'GET',
-          headers: options.headers,
+          headers,
           rejectUnauthorized: false, // Explicitly permit self-signed PVE certificates
           timeout: options.timeoutMs || 8000,
         },
@@ -103,6 +116,9 @@ function pveRequest(urlStr: string, options: { method?: string; headers?: Record
         reject(err);
       });
 
+      if (options.body) {
+        req.write(options.body);
+      }
       req.end();
     } catch (err: any) {
       reject(new Error(`Failed to parse URL from ${urlStr}: ${err.message}`));
@@ -258,6 +274,7 @@ export class ProxmoxClient {
     cores?: number;
     memoryMb?: number;
     diskGb?: number;
+    template?: string;
   }): Promise<{ success: boolean; vmid: number; message: string; taskId?: string }> {
     const { host, port = 8006, tokenId, tokenSecret, nodeName } = config.proxmox;
     if (!host || !tokenId || !tokenSecret) {
@@ -274,10 +291,12 @@ export class ProxmoxClient {
     const memory = params.memoryMb || 1024;
     const disk = params.diskGb || 8;
     const hostname = params.hostname || `saint-pod-${vmid}`;
+    const ostemplate = params.template || 'local:vztmpl/debian-12-standard_12.12-1_amd64.tar.zst';
 
     try {
       const postData = new URLSearchParams({
         vmid: vmid.toString(),
+        ostemplate,
         hostname,
         cores: cores.toString(),
         memory: memory.toString(),
@@ -286,7 +305,7 @@ export class ProxmoxClient {
         net0: 'name=eth0,bridge=vmbr0,ip=dhcp',
         unprivileged: '1',
         start: '1',
-        description: 'Saint // Cold Steel Bot Pod (Capacity: 5 Bots)',
+        description: 'Saint // Cold Steel Bot Pod (Capacity: 5 Bots, 1GB quota per bot slot)',
       }).toString();
 
       const res = await pveRequest(`${cleanHost}/api2/json/nodes/${nodeName}/lxc`, {
@@ -295,7 +314,8 @@ export class ProxmoxClient {
           Authorization: `PVEAPIToken=${tokenId}=${tokenSecret}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        timeoutMs: 8000,
+        body: postData,
+        timeoutMs: 15000,
       });
 
       const json: any = await res.json();

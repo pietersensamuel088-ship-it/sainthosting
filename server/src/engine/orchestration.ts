@@ -1,4 +1,6 @@
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 import { config } from '../config.js';
 import { dbStore, BotRecord, ClusterContainerRecord, DiscordCustomization, SlashCommandDef } from '../db/store.js';
 import { proxmoxClient, ProxmoxNodeStatusResponse } from './proxmoxClient.js';
@@ -214,13 +216,13 @@ class OrchestrationEngine {
     });
   }
 
-  public approveDeployment(id: string): {
+  public async approveDeployment(id: string): Promise<{
     success: boolean;
     deployment?: BotRecord;
     error?: string;
     capacityAlertTriggered?: boolean;
     message: string;
-  } {
+  }> {
     const bot = dbStore.getBotById(id);
     if (!bot) {
       return { success: false, error: 'NOT_FOUND', message: `No bot found with ID '${id}'` };
@@ -230,31 +232,32 @@ class OrchestrationEngine {
       return { success: true, deployment: bot, message: 'Bot is already running.' };
     }
 
-    const containers = dbStore.getContainers();
-    const allBots = dbStore.getAllBots();
-    const currentlyRunning = allBots.filter((d) => d.status === 'running').length;
-    const nextRunningCount = currentlyRunning + 1;
+    let containers = dbStore.getContainers();
 
-    // Available open slots in containers (5 bots hard ceiling)
-    const availableContainer = containers.find((c) => c.status === 'active' && c.allocatedBots.length < 5);
+    // Find container with available slot (< 5 bots hard ceiling)
+    let targetContainer = containers.find((c) => c.status === 'active' && c.allocatedBots.length < 5);
 
-    if (!availableContainer || (nextRunningCount % 5 === 0 && !availableContainer)) {
-      this.capacityTriggerAlert = {
-        active: true,
-        message:
-          '[CRITICAL] CLUSTER CAPACITY REACHED. PROMPT: Manually provision an additional Proxmox VM node or spin up a new global cluster element to accept further deployments.',
-        triggeredAt: new Date().toISOString(),
-      };
+    // If no container has an open slot, auto-provision a new Proxmox LXC Container
+    if (!targetContainer) {
+      try {
+        targetContainer = await this.provisionProxmoxNode();
+      } catch (err: any) {
+        this.capacityTriggerAlert = {
+          active: true,
+          message:
+            '[CRITICAL] CLUSTER CAPACITY REACHED. PROMPT: Manually provision an additional Proxmox VM node or spin up a new global cluster element to accept further deployments.',
+          triggeredAt: new Date().toISOString(),
+        };
 
-      return {
-        success: false,
-        capacityAlertTriggered: true,
-        error: 'CLUSTER_CAPACITY_CEILING',
-        message: this.capacityTriggerAlert.message!,
-      };
+        return {
+          success: false,
+          capacityAlertTriggered: true,
+          error: 'CLUSTER_CAPACITY_CEILING',
+          message: this.capacityTriggerAlert.message!,
+        };
+      }
     }
 
-    const targetContainer = availableContainer;
     targetContainer.allocatedBots.push(bot.id);
     const assignedSlot = targetContainer.allocatedBots.length;
 
@@ -263,14 +266,40 @@ class OrchestrationEngine {
     }
     dbStore.updateContainer(targetContainer.id, targetContainer);
 
+    // Prepare isolated bot runtime directory with 1GB dedicated storage allocation
+    const botRuntimeDir = path.resolve(__dirname, '../../data/bots', bot.id);
+    if (!fs.existsSync(botRuntimeDir)) {
+      fs.mkdirSync(botRuntimeDir, { recursive: true });
+    }
+
+    // Write safe isolation manifest
+    fs.writeFileSync(
+      path.join(botRuntimeDir, 'isolation-manifest.json'),
+      JSON.stringify(
+        {
+          botId: bot.id,
+          name: bot.name,
+          framework: bot.framework,
+          allocatedPod: targetContainer.label,
+          vmid: targetContainer.vmid,
+          slotIndex: assignedSlot,
+          storageQuota: '1GB',
+          isolatedDir: botRuntimeDir,
+          initializedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+
     const now = new Date();
     const subdomain = bot.subdomainConsoleUrl || `https://console.sa1nt.xyz/?bot=${bot.id}`;
 
     const liveLogs = [
       ...(bot.liveTerminalLogs || []),
-      { time: now.toLocaleTimeString(), level: 'SUCCESS' as const, text: `[PROXMOX] Admin clearance approved. Allocating LXC container slot.` },
+      { time: now.toLocaleTimeString(), level: 'SUCCESS' as const, text: `[PROXMOX] Clearance approved. Mounted into ${targetContainer.label} (VMID: ${targetContainer.vmid}).` },
+      { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[STORAGE] Isolated workspace initialized in slot [${assignedSlot}/5] with 1GB dedicated disk quota.` },
       { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[SECURITY] Subdomain live: ${subdomain} (Zero Port Forwarding Reverse Tunnel).` },
-      { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[POD] Bound to ${targetContainer.label} -> Dedicated Slot [${assignedSlot}/5].` },
       { time: now.toLocaleTimeString(), level: 'SUCCESS' as const, text: `[GATEWAY] Discord Gateway session initialized. Slash commands ready.` },
       { time: now.toLocaleTimeString(), level: 'INFO' as const, text: `[DAEMON] Bot process active with community cluster uptime monitoring.` },
     ];

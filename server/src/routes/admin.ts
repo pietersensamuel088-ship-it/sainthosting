@@ -88,10 +88,10 @@ router.get('/deployments', requireAdminAuth, (req: Request, res: Response) => {
  * Admin Verification Gate: Approve Deployment
  * Triggers 5-Bot Physical Ceiling & Proxmox Capacity Trigger
  */
-router.post('/approve/:id', requireAdminAuth, (req: Request, res: Response): void => {
+router.post('/approve/:id', requireAdminAuth, async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
-  const result = orchestrationEngine.approveDeployment(id);
+  const result = await orchestrationEngine.approveDeployment(id);
 
   if (!result.success) {
     res.status(400).json({
