@@ -23,6 +23,9 @@ services:
       - PROXMOX_NODE_NAME=pve
       - PROXMOX_API_TOKEN_ID=root@pam!saint-token
       - PROXMOX_API_TOKEN_SECRET=97103130-645c-4186-9b4a-7271022af92f
+      - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
+      - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
+      - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-https://host.sa1nt.xyz/api/auth/discord/callback}
     volumes:
       - ./server/data:/app/server/data
     healthcheck:
