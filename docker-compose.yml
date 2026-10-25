@@ -16,7 +16,7 @@ services:
       - BASE_URL=https://host.sa1nt.xyz
       - API_BASE_URL=https://host.sa1nt.xyz/api
       - JWT_SECRET=saint-cold-steel-super-secure-jwt-secret-99901234
-      - ADMIN_PASSWORD=saint-admin-coldsteel-2026
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-Samuel5@/1}
       - ADMIN_EMAIL=sysadmin@sa1nt.xyz
       - PROXMOX_HOST=https://192.168.18.212:8006
       - PROXMOX_PORT=8006

@@ -357,15 +357,16 @@ class OrchestrationEngine {
 
     // If Proxmox is bridged, trigger real LXC container provisioning on the hypervisor
     if (config.proxmox.host && config.proxmox.tokenId) {
-      try {
-        await proxmoxClient.createLxcContainer({
-          vmid: nextVmid,
-          hostname: nodeLabel.toLowerCase(),
-          cores,
-          memoryMb,
-        });
-      } catch (err) {
-        console.warn('[PROXMOX_PROVISION_NOTICE] Container staged in cluster catalog:', err);
+      const pveResult = await proxmoxClient.createLxcContainer({
+        vmid: nextVmid,
+        hostname: nodeLabel.toLowerCase(),
+        cores,
+        memoryMb,
+      });
+
+      if (!pveResult.success) {
+        console.error('[PROXMOX_PROVISION_ERROR]', pveResult.message);
+        throw new Error(pveResult.message);
       }
     }
 

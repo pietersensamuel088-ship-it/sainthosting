@@ -170,23 +170,6 @@ class DatabaseStore {
         uptime_seconds INTEGER NOT NULL
       );
     `);
-
-    // Ensure default primary container exists if empty
-    const count = this.db.prepare('SELECT COUNT(*) as count FROM containers').get() as { count: number };
-    if (count.count === 0) {
-      this.addContainer({
-        id: 'lxc-node-101',
-        label: 'SAINT-POD-01',
-        vmid: 101,
-        nodeHost: 'pve-saint',
-        status: 'active',
-        allocatedBots: [],
-        maxBots: 5,
-        cpuCores: 2,
-        allocatedMemoryMb: 2048,
-        uptimeSeconds: 0,
-      });
-    }
   }
 
   private migrateFromLegacyJson(): void {
