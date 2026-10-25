@@ -1,10 +1,97 @@
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { dbStore } from '../db/store.js';
 import { requireUserAuth } from './auth.js';
 import { DiscordBotClient } from '../engine/discordClient.js';
 
 const router = Router();
 const discordClient = new DiscordBotClient();
+
+const BOTS_BASE_DIR = path.resolve(__dirname, '../../data/bots');
+
+/**
+ * Returns the locked files directory for a bot, creating default files if new.
+ */
+function getBotFilesDir(botId: string, botName: string = 'Discord Bot'): string {
+  const dir = path.join(BOTS_BASE_DIR, botId, 'files');
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+
+    // Seed default starter files
+    const defaultBotJs = `// ${botName} - Saint // Cold Steel Bot Runtime
+const { Client, GatewayIntentBits } = require('discord.js');
+require('dotenv').config();
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
+});
+
+client.once('ready', () => {
+  console.log(\`[ONLINE] Logged in as \${client.user.tag}!\`);
+});
+
+client.on('messageCreate', (message) => {
+  if (message.author.bot) return;
+  if (message.content === '!ping') {
+    message.reply('Pong! Latency: ' + client.ws.ping + 'ms (Saint Cluster)');
+  }
+});
+
+const token = process.env.DISCORD_BOT_TOKEN;
+if (token && token.trim() !== '' && token !== 'your_bot_token_here') {
+  client.login(token);
+} else {
+  console.warn('[NOTICE] Set DISCORD_BOT_TOKEN in your .env file to start your bot.');
+}
+`;
+
+    const defaultPackageJson = JSON.stringify(
+      {
+        name: botName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        version: '1.0.0',
+        main: 'bot.js',
+        scripts: {
+          start: 'node bot.js',
+        },
+        dependencies: {
+          'discord.js': '^14.16.3',
+          dotenv: '^16.4.7',
+        },
+      },
+      null,
+      2
+    );
+
+    const defaultEnv = `# Isolated Environment Variables for ${botName}
+DISCORD_BOT_TOKEN=your_bot_token_here
+BOT_PREFIX=!
+NODE_ENV=production
+`;
+
+    fs.writeFileSync(path.join(dir, 'bot.js'), defaultBotJs, 'utf-8');
+    fs.writeFileSync(path.join(dir, 'package.json'), defaultPackageJson, 'utf-8');
+    fs.writeFileSync(path.join(dir, '.env'), defaultEnv, 'utf-8');
+  }
+  return dir;
+}
+
+/**
+ * Strict path traversal check: ensures target file resides strictly within the bot's locked directory
+ */
+function resolveSafeBotFile(botId: string, filename: string): string | null {
+  const baseDir = getBotFilesDir(botId);
+  const cleanFilename = path.normalize(filename).replace(/^(\.\.[\/\\])+/, '').trim();
+  const resolved = path.resolve(baseDir, cleanFilename);
+  if (!resolved.startsWith(baseDir)) {
+    return null;
+  }
+  return resolved;
+}
 
 /**
  * Get all bots belonging to the current user
@@ -291,6 +378,194 @@ router.delete('/:id', requireUserAuth, (req: Request, res: Response): void => {
   res.json({
     success,
     message: `Bot '${bot.name}' has been deleted and its pod slot released.`,
+  });
+});
+
+/**
+ * List files in bot's locked directory
+ */
+router.get('/:id/files', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+
+  const bot = dbStore.getBotById(id);
+  if (!bot) {
+    res.status(404).json({ success: false, message: 'Bot not found.' });
+    return;
+  }
+
+  if (bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied: Directory locked to bot owner.' });
+    return;
+  }
+
+  const dir = getBotFilesDir(bot.id, bot.name);
+  const fileNames = fs.readdirSync(dir);
+  const files = fileNames.map((name) => {
+    const filePath = path.join(dir, name);
+    const stats = fs.statSync(filePath);
+    return {
+      name,
+      sizeBytes: stats.size,
+      updatedAt: stats.mtime.toISOString(),
+      isDirectory: stats.isDirectory(),
+    };
+  });
+
+  res.json({
+    success: true,
+    lockedDir: `/data/bots/${bot.id}/files`,
+    files,
+  });
+});
+
+/**
+ * Get content of a specific file in bot's locked directory
+ */
+router.get('/:id/files/content', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+  const filename = (req.query.filename as string) || 'bot.js';
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  const safePath = resolveSafeBotFile(id, filename);
+  if (!safePath || !fs.existsSync(safePath)) {
+    res.status(404).json({ success: false, message: 'File not found or illegal directory path.' });
+    return;
+  }
+
+  const content = fs.readFileSync(safePath, 'utf-8');
+  res.json({
+    success: true,
+    filename,
+    content,
+  });
+});
+
+/**
+ * Save / create a file in bot's locked directory
+ */
+router.post('/:id/files/save', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+  const { filename, content } = req.body;
+
+  if (!filename || typeof filename !== 'string') {
+    res.status(400).json({ success: false, message: 'Valid filename required.' });
+    return;
+  }
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  const safePath = resolveSafeBotFile(id, filename);
+  if (!safePath) {
+    res.status(400).json({ success: false, message: '[SECURITY_VIOLATION] Directory traversal blocked.' });
+    return;
+  }
+
+  // Size limit check (max 2MB per file)
+  if (content && Buffer.byteLength(content, 'utf-8') > 2 * 1024 * 1024) {
+    res.status(400).json({ success: false, message: 'File size exceeds 2MB limit.' });
+    return;
+  }
+
+  fs.writeFileSync(safePath, content || '', 'utf-8');
+
+  res.json({
+    success: true,
+    message: `File '${filename}' saved securely in locked directory.`,
+  });
+});
+
+/**
+ * Delete a file from bot's locked directory
+ */
+router.delete('/:id/files/delete', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+  const filename = req.query.filename as string;
+
+  if (!filename || typeof filename !== 'string') {
+    res.status(400).json({ success: false, message: 'Valid filename required.' });
+    return;
+  }
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  const safePath = resolveSafeBotFile(id, filename);
+  if (!safePath || !fs.existsSync(safePath)) {
+    res.status(404).json({ success: false, message: 'File not found.' });
+    return;
+  }
+
+  fs.unlinkSync(safePath);
+
+  res.json({
+    success: true,
+    message: `File '${filename}' deleted.`,
+  });
+});
+
+/**
+ * Get bot's isolated .env configuration
+ */
+router.get('/:id/env', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  const envPath = resolveSafeBotFile(id, '.env');
+  const envContent = envPath && fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+
+  res.json({
+    success: true,
+    envContent,
+  });
+});
+
+/**
+ * Save bot's isolated .env configuration
+ */
+router.post('/:id/env', requireUserAuth, (req: Request, res: Response): void => {
+  const user = (req as any).user;
+  const { id } = req.params;
+  const { envContent } = req.body;
+
+  const bot = dbStore.getBotById(id);
+  if (!bot || bot.userId !== user.userId) {
+    res.status(403).json({ success: false, message: 'Access denied.' });
+    return;
+  }
+
+  const envPath = resolveSafeBotFile(id, '.env');
+  if (!envPath) {
+    res.status(400).json({ success: false, message: 'Illegal path.' });
+    return;
+  }
+
+  fs.writeFileSync(envPath, envContent || '', 'utf-8');
+
+  res.json({
+    success: true,
+    message: 'Environment configuration updated in isolated bot container.',
   });
 });
 

@@ -55,10 +55,48 @@ export function requireUserAuth(req: Request, res: Response, next: Function): vo
 }
 
 /**
+ * Cloudflare Turnstile Verification Helper
+ */
+async function verifyTurnstile(token?: string, ip?: string): Promise<boolean> {
+  const secret = process.env.CLOUDFLARE_TURNSTILE_SECRET_KEY;
+  if (!secret) return true; // Pass through if Turnstile secret not configured
+  if (!token) return false;
+  try {
+    const postData = new URLSearchParams({
+      secret,
+      response: token,
+      remoteip: ip || '',
+    }).toString();
+
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: postData,
+    });
+    const data: any = await res.json();
+    return data.success === true;
+  } catch (err) {
+    console.warn('[TURNSTILE_CHECK_FAIL]', err);
+    return false;
+  }
+}
+
+/**
  * Register with Email & Password
  */
-router.post('/register', submissionLimiter, (req: Request, res: Response): void => {
-  const { email, username, password } = req.body;
+router.post('/register', submissionLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { email, username, password, turnstileToken } = req.body;
+  const cfToken = turnstileToken || req.body['cf-turnstile-response'];
+
+  const isHuman = await verifyTurnstile(cfToken, req.ip);
+  if (!isHuman) {
+    res.status(400).json({
+      success: false,
+      error: 'CAPTCHA_FAILED',
+      message: 'Cloudflare security verification failed. Please try again.',
+    });
+    return;
+  }
 
   if (!email || !username || !password) {
     res.status(400).json({
@@ -124,8 +162,19 @@ router.post('/register', submissionLimiter, (req: Request, res: Response): void 
 /**
  * Login with Email & Password
  */
-router.post('/login', submissionLimiter, (req: Request, res: Response): void => {
-  const { email, password } = req.body;
+router.post('/login', submissionLimiter, async (req: Request, res: Response): Promise<void> => {
+  const { email, password, turnstileToken } = req.body;
+  const cfToken = turnstileToken || req.body['cf-turnstile-response'];
+
+  const isHuman = await verifyTurnstile(cfToken, req.ip);
+  if (!isHuman) {
+    res.status(400).json({
+      success: false,
+      error: 'CAPTCHA_FAILED',
+      message: 'Cloudflare security verification failed. Please try again.',
+    });
+    return;
+  }
 
   if (!email || !password) {
     res.status(400).json({

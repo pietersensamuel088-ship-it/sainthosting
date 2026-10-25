@@ -19,6 +19,14 @@ import {
   HardDrive,
   Clock,
   Sparkles,
+  Folder,
+  FileText,
+  Plus,
+  Trash2,
+  Save,
+  FileCode,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface ConsoleLog {
@@ -84,6 +92,164 @@ export const BotConsoleView: React.FC<BotConsoleViewProps> = ({ botId, onBack })
   const [syncFeedback, setSyncFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const terminalEndRef = useRef<HTMLDivElement>(null);
+
+  // Tab Navigation
+  const [activeTab, setActiveTab] = useState<'terminal' | 'files' | 'env'>('terminal');
+
+  // File Manager State
+  const [files, setFiles] = useState<Array<{ name: string; sizeBytes: number; updatedAt: string; isDirectory: boolean }>>([]);
+  const [selectedFile, setSelectedFile] = useState<string>('bot.js');
+  const [fileContent, setFileContent] = useState<string>('');
+  const [fileLoading, setFileLoading] = useState(false);
+  const [savingFile, setSavingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+  const [showNewFileInput, setShowNewFileInput] = useState(false);
+  const [fileStatusMsg, setFileStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Environment (.env) State
+  const [envContent, setEnvContent] = useState<string>('');
+  const [savingEnv, setSavingEnv] = useState(false);
+  const [envStatusMsg, setEnvStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchFiles = async () => {
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/files`, { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        setFiles(json.files || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch files:', err);
+    }
+  };
+
+  const loadFileContent = async (filename: string) => {
+    setSelectedFile(filename);
+    setFileLoading(true);
+    setFileStatusMsg(null);
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/files/content?filename=${encodeURIComponent(filename)}`, { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        setFileContent(json.content);
+      }
+    } catch (err) {
+      console.error('Failed to load file content:', err);
+    } finally {
+      setFileLoading(false);
+    }
+  };
+
+  const handleSaveFile = async () => {
+    if (!selectedFile) return;
+    setSavingFile(true);
+    setFileStatusMsg(null);
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/files/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ filename: selectedFile, content: fileContent }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setFileStatusMsg({ type: 'success', text: `Saved '${selectedFile}' successfully!` });
+        await fetchFiles();
+      } else {
+        setFileStatusMsg({ type: 'error', text: json.message || 'Failed to save file.' });
+      }
+    } catch (err: any) {
+      setFileStatusMsg({ type: 'error', text: err.message || 'Error saving file.' });
+    } finally {
+      setSavingFile(false);
+    }
+  };
+
+  const handleCreateFile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFileName.trim()) return;
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/files/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ filename: newFileName.trim(), content: '// New File\n' }),
+      });
+      if (res.ok) {
+        await fetchFiles();
+        await loadFileContent(newFileName.trim());
+        setNewFileName('');
+        setShowNewFileInput(false);
+      }
+    } catch (err) {
+      console.error('Failed to create file:', err);
+    }
+  };
+
+  const handleDeleteFile = async (filename: string) => {
+    if (!window.confirm(`Delete file '${filename}'?`)) return;
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/files/delete?filename=${encodeURIComponent(filename)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (res.ok) {
+        await fetchFiles();
+        if (selectedFile === filename) {
+          setSelectedFile('');
+          setFileContent('');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete file:', err);
+    }
+  };
+
+  const fetchEnv = async () => {
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/env`, { credentials: 'include' });
+      if (res.ok) {
+        const json = await res.json();
+        setEnvContent(json.envContent || '');
+      }
+    } catch (err) {
+      console.error('Failed to fetch env:', err);
+    }
+  };
+
+  const handleSaveEnv = async () => {
+    setSavingEnv(true);
+    setEnvStatusMsg(null);
+    try {
+      const res = await fetch(`/api/user/bots/${botId}/env`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ envContent }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setEnvStatusMsg({ type: 'success', text: 'Environment (.env) updated successfully!' });
+      } else {
+        setEnvStatusMsg({ type: 'error', text: json.message || 'Failed to save .env.' });
+      }
+    } catch (err: any) {
+      setEnvStatusMsg({ type: 'error', text: err.message || 'Error saving .env.' });
+    } finally {
+      setSavingEnv(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'files') {
+      fetchFiles();
+      if (!fileContent && selectedFile) {
+        loadFileContent(selectedFile);
+      }
+    } else if (activeTab === 'env') {
+      fetchEnv();
+    }
+  }, [activeTab]);
 
   const fetchConsoleData = async () => {
     try {
@@ -507,68 +673,255 @@ export const BotConsoleView: React.FC<BotConsoleViewProps> = ({ botId, onBack })
           </div>
         </div>
 
-        {/* Right Column: Live Terminal Stream */}
-        <div className="lg:col-span-2 space-y-2">
-          <div className="bg-charcoal-950 border border-zinc-800 flex flex-col h-[520px]">
-            {/* Terminal Header */}
-            <div className="p-2.5 bg-pitch border-b border-zinc-800 flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-2">
-                <Terminal className="w-3.5 h-3.5 text-crimson-bright" />
-                <span className="text-white font-bold">DAEMON LOG STREAM</span>
-                <span className="text-[10px] px-1.5 py-0.2 bg-charcoal-900 border border-zinc-800 text-zinc-500">
-                  stdout/stderr
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => handleAction('clear_logs')}
-                  className="text-[11px] text-zinc-500 hover:text-zinc-300"
-                >
-                  Clear Buffer
-                </button>
-                <button
-                  onClick={fetchConsoleData}
-                  className="p-1 text-zinc-400 hover:text-white"
-                  title="Refresh stream"
-                >
-                  <RefreshCw className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
+        {/* Right Column: Tabbed View (Terminal, Locked File Manager, Environment) */}
+        <div className="lg:col-span-2 space-y-3">
+          {/* Navigation Tabs */}
+          <div className="flex items-center space-x-1 border-b border-zinc-800 pb-2">
+            <button
+              onClick={() => setActiveTab('terminal')}
+              className={`flex items-center space-x-2 px-3 py-1.5 text-xs font-bold uppercase transition-all ${
+                activeTab === 'terminal'
+                  ? 'bg-charcoal-900 border border-crimson-bright text-white shadow-crimson-glow'
+                  : 'bg-pitch border border-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Terminal className="w-3.5 h-3.5 text-crimson-bright" />
+              <span>TERMINAL STREAM</span>
+            </button>
 
-            {/* Terminal Body */}
-            <div className="flex-1 p-3 bg-pitch overflow-y-auto font-mono text-xs space-y-1 text-zinc-300 selection:bg-crimson-blood selection:text-white">
-              {data.liveTerminalLogs.map((log, idx) => (
-                <div key={idx} className="flex items-start space-x-2 leading-relaxed">
-                  <span className="text-zinc-600 shrink-0 text-[11px]">[{log.time}]</span>
-                  <span
-                    className={`text-[10px] px-1 py-0.2 font-bold shrink-0 ${
-                      log.level === 'SUCCESS'
-                        ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-900'
-                        : log.level === 'WARN'
-                        ? 'text-amber-400 bg-amber-950/40 border border-amber-900'
-                        : log.level === 'ERROR'
-                        ? 'text-crimson-bright bg-crimson-blood/40 border border-crimson-dark'
-                        : 'text-zinc-400 bg-charcoal-900 border border-zinc-800'
-                    }`}
-                  >
-                    {log.level}
-                  </span>
-                  <span className="break-all">{log.text}</span>
-                </div>
-              ))}
-              <div ref={terminalEndRef} />
-            </div>
+            <button
+              onClick={() => setActiveTab('files')}
+              className={`flex items-center space-x-2 px-3 py-1.5 text-xs font-bold uppercase transition-all ${
+                activeTab === 'files'
+                  ? 'bg-charcoal-900 border border-crimson-bright text-white shadow-crimson-glow'
+                  : 'bg-pitch border border-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Folder className="w-3.5 h-3.5 text-crimson-bright" />
+              <span>LOCKED FILE MANAGER</span>
+            </button>
 
-            {/* Terminal Footer Status Bar */}
-            <div className="p-2 bg-charcoal-950 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
-              <div className="flex items-center space-x-2">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
-                <span>TUNNEL ONLINE // NO INBOUND PORTS OPENED</span>
-              </div>
-              <span className="text-zinc-600">Encrypted Store</span>
-            </div>
+            <button
+              onClick={() => setActiveTab('env')}
+              className={`flex items-center space-x-2 px-3 py-1.5 text-xs font-bold uppercase transition-all ${
+                activeTab === 'env'
+                  ? 'bg-charcoal-900 border border-crimson-bright text-white shadow-crimson-glow'
+                  : 'bg-pitch border border-zinc-800 text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Key className="w-3.5 h-3.5 text-crimson-bright" />
+              <span>ENVIRONMENT (.ENV)</span>
+            </button>
           </div>
+
+          {/* Tab 1: Terminal Log Stream */}
+          {activeTab === 'terminal' && (
+            <div className="bg-charcoal-950 border border-zinc-800 flex flex-col h-[520px]">
+              {/* Terminal Header */}
+              <div className="p-2.5 bg-pitch border-b border-zinc-800 flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-2">
+                  <Terminal className="w-3.5 h-3.5 text-crimson-bright" />
+                  <span className="text-white font-bold">DAEMON LOG STREAM</span>
+                  <span className="text-[10px] px-1.5 py-0.2 bg-charcoal-900 border border-zinc-800 text-zinc-500">
+                    stdout/stderr
+                  </span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handleAction('clear_logs')}
+                    className="text-[11px] text-zinc-500 hover:text-zinc-300"
+                  >
+                    Clear Buffer
+                  </button>
+                  <button
+                    onClick={fetchConsoleData}
+                    className="p-1 text-zinc-400 hover:text-white"
+                    title="Refresh stream"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Terminal Body */}
+              <div className="flex-1 p-3 bg-pitch overflow-y-auto font-mono text-xs space-y-1 text-zinc-300 selection:bg-crimson-blood selection:text-white">
+                {data.liveTerminalLogs.map((log, idx) => (
+                  <div key={idx} className="flex items-start space-x-2 leading-relaxed">
+                    <span className="text-zinc-600 shrink-0 text-[11px]">[{log.time}]</span>
+                    <span
+                      className={`text-[10px] px-1 py-0.2 font-bold shrink-0 ${
+                        log.level === 'SUCCESS'
+                          ? 'text-emerald-400 bg-emerald-950/40 border border-emerald-900'
+                          : log.level === 'WARN'
+                          ? 'text-amber-400 bg-amber-950/40 border border-amber-900'
+                          : log.level === 'ERROR'
+                          ? 'text-crimson-bright bg-crimson-blood/40 border border-crimson-dark'
+                          : 'text-zinc-400 bg-charcoal-900 border border-zinc-800'
+                      }`}
+                    >
+                      {log.level}
+                    </span>
+                    <span className="break-all">{log.text}</span>
+                  </div>
+                ))}
+                <div ref={terminalEndRef} />
+              </div>
+
+              {/* Terminal Footer Status Bar */}
+              <div className="p-2 bg-charcoal-950 border-t border-zinc-900 flex items-center justify-between text-[11px] text-zinc-500">
+                <div className="flex items-center space-x-2">
+                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                  <span>TUNNEL ONLINE // NO INBOUND PORTS OPENED</span>
+                </div>
+                <span className="text-zinc-600">Encrypted Store</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: Locked File Manager & Code Editor */}
+          {activeTab === 'files' && (
+            <div className="bg-charcoal-950 border border-zinc-800 flex flex-col h-[520px]">
+              {/* File Manager Header */}
+              <div className="p-2.5 bg-pitch border-b border-zinc-800 flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-2">
+                  <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-white font-bold">DIRECTORY LOCKED TO BOT</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">/data/bots/{botId}/files/</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setShowNewFileInput(!showNewFileInput)}
+                    className="flex items-center space-x-1 px-2.5 py-1 bg-charcoal-900 border border-zinc-700 text-white text-xs hover:border-crimson-bright"
+                  >
+                    <Plus className="w-3 h-3 text-crimson-bright" />
+                    <span>NEW FILE</span>
+                  </button>
+                  <button
+                    onClick={handleSaveFile}
+                    disabled={savingFile || !selectedFile}
+                    className="flex items-center space-x-1 px-3 py-1 bg-crimson-bright hover:bg-crimson-dark text-white text-xs font-bold uppercase shadow-crimson-glow border border-white"
+                  >
+                    <Save className="w-3 h-3" />
+                    <span>{savingFile ? 'SAVING...' : 'SAVE FILE'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Status Message */}
+              {fileStatusMsg && (
+                <div className={`p-2 text-xs border ${fileStatusMsg.type === 'success' ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                  {fileStatusMsg.text}
+                </div>
+              )}
+
+              {/* New File Modal Input */}
+              {showNewFileInput && (
+                <form onSubmit={handleCreateFile} className="p-2.5 bg-charcoal-900 border-b border-zinc-800 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. index.js, commands.js..."
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    className="flex-1 bg-pitch border border-zinc-700 text-white text-xs px-2.5 py-1 focus:border-crimson-bright focus:outline-none"
+                    autoFocus
+                  />
+                  <button type="submit" className="px-3 py-1 bg-crimson-bright text-white text-xs font-bold uppercase">
+                    CREATE
+                  </button>
+                  <button type="button" onClick={() => setShowNewFileInput(false)} className="px-2 py-1 text-xs text-zinc-400">
+                    Cancel
+                  </button>
+                </form>
+              )}
+
+              <div className="flex-1 flex overflow-hidden">
+                {/* Files Sidebar */}
+                <div className="w-48 border-r border-zinc-800 bg-pitch overflow-y-auto p-2 space-y-1 shrink-0">
+                  <div className="text-[10px] text-zinc-500 uppercase font-bold px-2 py-1">Files ({files.length})</div>
+                  {files.map((f) => (
+                    <div
+                      key={f.name}
+                      onClick={() => loadFileContent(f.name)}
+                      className={`flex items-center justify-between px-2 py-1.5 text-xs cursor-pointer group transition-colors ${
+                        selectedFile === f.name ? 'bg-charcoal-900 text-white border-l-2 border-crimson-bright font-bold' : 'text-zinc-400 hover:text-white hover:bg-charcoal-950'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-1.5 truncate">
+                        <FileCode className="w-3.5 h-3.5 text-zinc-500 group-hover:text-crimson-bright shrink-0" />
+                        <span className="truncate">{f.name}</span>
+                      </div>
+                      {f.name !== 'bot.js' && f.name !== '.env' && f.name !== 'package.json' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteFile(f.name);
+                          }}
+                          className="text-zinc-600 hover:text-red-400 p-0.5"
+                          title="Delete file"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* File Editor Area */}
+                <div className="flex-1 flex flex-col bg-pitch">
+                  <div className="px-3 py-1.5 bg-charcoal-950 border-b border-zinc-900 text-[11px] text-zinc-400 flex items-center justify-between">
+                    <span>Editing: <strong className="text-white">{selectedFile || 'Select a file'}</strong></span>
+                    <span className="text-zinc-500 text-[10px]">1GB Isolated Storage Quota</span>
+                  </div>
+                  <textarea
+                    value={fileContent}
+                    onChange={(e) => setFileContent(e.target.value)}
+                    disabled={fileLoading || !selectedFile}
+                    spellCheck={false}
+                    className="flex-1 p-3 bg-pitch font-mono text-xs text-zinc-200 focus:outline-none resize-none leading-relaxed selection:bg-crimson-blood selection:text-white"
+                    placeholder="// Select or create a file to start editing..."
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Isolated Environment Variables */}
+          {activeTab === 'env' && (
+            <div className="bg-charcoal-950 border border-zinc-800 flex flex-col h-[520px]">
+              <div className="p-2.5 bg-pitch border-b border-zinc-800 flex items-center justify-between text-xs">
+                <div className="flex items-center space-x-2">
+                  <Key className="w-3.5 h-3.5 text-crimson-bright" />
+                  <span className="text-white font-bold">ISOLATED BOT .ENV CONFIGURATION</span>
+                </div>
+                <button
+                  onClick={handleSaveEnv}
+                  disabled={savingEnv}
+                  className="flex items-center space-x-1 px-3 py-1 bg-crimson-bright hover:bg-crimson-dark text-white text-xs font-bold uppercase shadow-crimson-glow border border-white"
+                >
+                  <Save className="w-3 h-3" />
+                  <span>{savingEnv ? 'SAVING...' : 'SAVE .ENV'}</span>
+                </button>
+              </div>
+
+              {envStatusMsg && (
+                <div className={`p-2 text-xs border ${envStatusMsg.type === 'success' ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300' : 'bg-red-950/40 border-red-800 text-red-300'}`}>
+                  {envStatusMsg.text}
+                </div>
+              )}
+
+              <div className="p-3 bg-charcoal-900 border-b border-zinc-900 text-xs text-zinc-400 leading-relaxed">
+                Configure your bot token, database credentials, or secret API keys here. This file is encrypted and locked strictly inside your bot's isolated container slot.
+              </div>
+
+              <textarea
+                value={envContent}
+                onChange={(e) => setEnvContent(e.target.value)}
+                spellCheck={false}
+                className="flex-1 p-3 bg-pitch font-mono text-xs text-zinc-200 focus:outline-none resize-none leading-relaxed selection:bg-crimson-blood selection:text-white"
+                placeholder="DISCORD_BOT_TOKEN=your_bot_token_here&#10;BOT_PREFIX=!&#10;CUSTOM_API_KEY=xyz"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
