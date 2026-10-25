@@ -12,6 +12,8 @@ export const AuthModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const turnstileSiteKey = '0x4AAAAAAFk2-yAcADfh29pZ';
+
   if (!isAuthModalOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,11 +21,13 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setLoading(true);
 
+    const cfToken = (document.querySelector('[name="cf-turnstile-response"]') as HTMLInputElement)?.value;
+
     let res;
     if (mode === 'signup') {
-      res = await registerWithEmail(email, username, password);
+      res = await registerWithEmail(email, username, password, cfToken);
     } else {
-      res = await loginWithEmail(email, password);
+      res = await loginWithEmail(email, password, cfToken);
     }
 
     setLoading(false);
@@ -145,6 +149,15 @@ export const AuthModal: React.FC = () => {
                 required
               />
             </div>
+          </div>
+
+          {/* Cloudflare Turnstile Verification Widget */}
+          <div className="flex justify-center py-1">
+            <div
+              className="cf-turnstile"
+              data-sitekey={turnstileSiteKey}
+              data-theme="dark"
+            ></div>
           </div>
 
           <button

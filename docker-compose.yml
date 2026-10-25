@@ -26,6 +26,8 @@ services:
       - DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID:-}
       - DISCORD_CLIENT_SECRET=${DISCORD_CLIENT_SECRET:-}
       - DISCORD_REDIRECT_URI=${DISCORD_REDIRECT_URI:-https://host.sa1nt.xyz/api/auth/discord/callback}
+      - CLOUDFLARE_TURNSTILE_SITE_KEY=${CLOUDFLARE_TURNSTILE_SITE_KEY:-}
+      - CLOUDFLARE_TURNSTILE_SECRET_KEY=${CLOUDFLARE_TURNSTILE_SECRET_KEY:-}
     volumes:
       - ./server/data:/app/server/data
     healthcheck:

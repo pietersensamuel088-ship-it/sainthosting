@@ -14,8 +14,8 @@ interface AuthContextType {
   isAuthModalOpen: boolean;
   openAuthModal: (onSuccess?: () => void) => void;
   closeAuthModal: () => void;
-  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
-  registerWithEmail: (email: string, username: string, password: string) => Promise<{ success: boolean; message: string }>;
+  loginWithEmail: (email: string, password: string, turnstileToken?: string) => Promise<{ success: boolean; message: string }>;
+  registerWithEmail: (email: string, username: string, password: string, turnstileToken?: string) => Promise<{ success: boolean; message: string }>;
   loginWithDiscord: (profile?: Partial<UserProfile>) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
   requireAuth: (callback: () => void) => void;
@@ -68,13 +68,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const loginWithEmail = async (email: string, password: string) => {
+  const loginWithEmail = async (email: string, password: string, turnstileToken?: string) => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -87,13 +87,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const registerWithEmail = async (email: string, username: string, password: string) => {
+  const registerWithEmail = async (email: string, username: string, password: string, turnstileToken?: string) => {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, username, password }),
+        body: JSON.stringify({ email, username, password, turnstileToken }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
